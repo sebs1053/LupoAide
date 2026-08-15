@@ -25,46 +25,32 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Gradle 8.11.1
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.11.1'
-          cache-disabled: true
-
-      - name: Setup Dummy Env & SDK Config
+      - name: Build Debug APK
         run: |
+          echo "=== 1. Searching for Android project root ==="
           TARGET_DIR="."
-          if [ ! -f "./settings.gradle.kts" ] && [ ! -f "./settings.gradle" ]; then
-            SETTINGS_FILE=$(find . -name "settings.gradle.kts" -o -name "settings.gradle" | head -n 1)
-            if [ -n "$SETTINGS_FILE" ]; then
-              TARGET_DIR=$(dirname "$SETTINGS_FILE")
-            fi
+          SETTINGS_FILE=$(find . -name "settings.gradle.kts" -o -name "settings.gradle" | head -n 1)
+          if [ -n "$SETTINGS_FILE" ]; then
+            TARGET_DIR=$(dirname "$SETTINGS_FILE")
           fi
-
-          echo "Working in: $TARGET_DIR"
+          echo "Found target project directory: $TARGET_DIR"
           cd "$TARGET_DIR"
 
+          echo "=== 2. Setting up environment & SDK config ==="
           if [ ! -f ".env" ]; then
             echo "GEMINI_API_KEY=dummy_key_for_build" > .env
           fi
-
           if [ -n "$ANDROID_HOME" ]; then
             echo "sdk.dir=$ANDROID_HOME" > local.properties
           fi
 
-      - name: Build with Gradle
-        run: |
-          TARGET_DIR="."
-          if [ ! -f "./settings.gradle.kts" ] && [ ! -f "./settings.gradle" ]; then
-            SETTINGS_FILE=$(find . -name "settings.gradle.kts" -o -name "settings.gradle" | head -n 1)
-            if [ -n "$SETTINGS_FILE" ]; then
-              TARGET_DIR=$(dirname "$SETTINGS_FILE")
-            fi
+          echo "=== 3. Running Gradle Build ==="
+          if [ -f "./gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug --stacktrace --info
+          else
+            gradle assembleDebug --stacktrace --info
           fi
-          cd "$TARGET_DIR"
-
-          # Use gradle with compilation arguments, no daemon and no configuration cache to prevent KSP failure
-          gradle assembleDebug --no-daemon --no-configuration-cache --stacktrace -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=1024m"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
