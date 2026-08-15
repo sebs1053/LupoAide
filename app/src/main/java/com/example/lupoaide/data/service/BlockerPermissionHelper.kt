@@ -122,39 +122,6 @@ object BlockerPermissionHelper {
     }
 
     /**
-     * Verifica si el permiso de acceso al uso (UsageStats) está concedido
-     */
-    fun isUsageStatsPermissionGranted(context: Context): Boolean {
-        return try {
-            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                appOps.unsafeCheckOpNoThrow(
-                    AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    Process.myUid(),
-                    context.packageName
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                appOps.checkOpNoThrow(
-                    AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    Process.myUid(),
-                    context.packageName
-                )
-            }
-            mode == AppOpsManager.MODE_ALLOWED
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
-     * Verifica si el permiso de sobreponer en pantalla está activo
-     */
-    fun isOverlayPermissionGranted(context: Context): Boolean {
-        return Settings.canDrawOverlays(context)
-    }
-
-    /**
      * Abre los ajustes del sistema para que el usuario habilite el Servicio de Accesibilidad de LupoAide
      */
     fun openAccessibilitySettings(context: Context) {
@@ -164,42 +131,10 @@ object BlockerPermissionHelper {
             }
             context.startActivity(intent)
         } catch (e: Exception) {
-            // Intent alternativo
             val fallback = Intent(Settings.ACTION_SETTINGS).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             context.startActivity(fallback)
-        }
-    }
-
-    /**
-     * Abre los ajustes para conceder permiso de Uso de Apps
-     */
-    fun openUsageStatsSettings(context: Context) {
-        try {
-            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            openAccessibilitySettings(context)
-        }
-    }
-
-    /**
-     * Abre los ajustes para superposición de pantalla
-     */
-    fun openOverlaySettings(context: Context) {
-        try {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:${context.packageName}")
-            ).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            openAccessibilitySettings(context)
         }
     }
 
