@@ -1,0 +1,6 @@
+{
+  "name": "LupoAide",
+  "description": "Compañero de Estudio IA con Gemini, hábitos, horario escolar, contrato de estudio y gamificación.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
