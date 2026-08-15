@@ -22,20 +22,46 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 8.11.1
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.11.1'
-          cache-read-only: false
-          cache-disabled: true
-
-      - name: Build with Gradle
+      - name: Locate and Build Project
         run: |
-          gradle assembleDebug --no-daemon --stacktrace -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=1024m"
+          echo "=== Diagnostic: Listing Repository Structure ==="
+          find . -maxdepth 3 -not -path '*/.*'
+          
+          # Find directory containing settings.gradle or settings.gradle.kts or build.gradle.kts
+          BUILD_DIR=""
+          if [ -f "./settings.gradle.kts" ] || [ -f "./settings.gradle" ] || [ -f "./build.gradle.kts" ]; then
+            BUILD_DIR="."
+          else
+            SETTINGS_PATH=$(find . -name "settings.gradle*" | head -n 1)
+            if [ -n "$SETTINGS_PATH" ]; then
+              BUILD_DIR=$(dirname "$SETTINGS_PATH")
+            fi
+          fi
+
+          if [ -z "$BUILD_DIR" ]; then
+            echo "Searching for app folder..."
+            APP_PATH=$(find . -type d -name "app" | head -n 1)
+            if [ -n "$APP_PATH" ]; then
+              BUILD_DIR=$(dirname "$APP_PATH")
+            else
+              BUILD_DIR="."
+            fi
+          fi
+
+          echo "Found Android Project Root at: $BUILD_DIR"
+          cd "$BUILD_DIR"
+
+          # If gradlew wrapper is missing, generate or use gradle directly
+          if [ -f "./gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          else
+            gradle assembleDebug --no-daemon --stacktrace
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LupoAide-APK
-          path: '**/build/outputs/apk/**/*.apk'
+          path: '**/*.apk'
           retention-days: 14
