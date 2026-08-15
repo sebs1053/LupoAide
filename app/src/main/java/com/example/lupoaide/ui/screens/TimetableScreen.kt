@@ -1,12 +1,10 @@
 package com.example.lupoaide.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,8 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,10 +26,10 @@ fun TimetableScreen(
     onAddSlot: (String, String, String, String, String, String) -> Unit,
     onDeleteSlot: (TimetableSlotEntity) -> Unit
 ) {
-    val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    val days = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
     var showAddDialog by remember { mutableStateOf(false) }
 
-    val daySlots = slots.filter { it.dayOfWeek == selectedDay }
+    val daySlots = slots.filter { it.dayOfWeek.equals(selectedDay, ignoreCase = true) }
 
     Scaffold(
         floatingActionButton = {
@@ -41,7 +37,7 @@ fun TimetableScreen(
                 onClick = { showAddDialog = true },
                 modifier = Modifier.testTag("add_class_fab")
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Class")
+                Icon(Icons.Default.Add, contentDescription = "Añadir Clase")
             }
         }
     ) { padding ->
@@ -52,19 +48,26 @@ fun TimetableScreen(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Class & Study Timetable",
+                text = "Horario Escolar",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Organiza tus materias, aulas y profesores de cada día de la semana.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Day Selector Tabs
+            // Selector de Días en Español
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 items(days) { day ->
-                    val isSelected = day == selectedDay
+                    val isSelected = day.equals(selectedDay, ignoreCase = true)
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
@@ -100,9 +103,15 @@ fun TimetableScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "No classes scheduled for $selectedDay",
+                            text = "No hay clases programadas para el $selectedDay",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Toca el botón + para registrar una clase en este día.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                         )
                     }
                 }
@@ -125,7 +134,7 @@ fun TimetableScreen(
                             ) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.width(60.dp)
+                                    modifier = Modifier.width(64.dp)
                                 ) {
                                     Text(
                                         text = slot.startTime,
@@ -170,7 +179,7 @@ fun TimetableScreen(
                                 IconButton(onClick = { onDeleteSlot(slot) }) {
                                     Icon(
                                         Icons.Default.DeleteOutline,
-                                        contentDescription = "Delete",
+                                        contentDescription = "Eliminar",
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                 }

@@ -11,11 +11,12 @@ data class TaskEntity(
     val title: String,
     val description: String = "",
     val subject: String = "General",
-    val xpReward: Int = 20,
-    val coinReward: Int = 10,
+    val xpReward: Int = 30,
+    val coinReward: Int = 15,
     val isCompleted: Boolean = false,
+    val rewardClaimed: Boolean = false, // Evita bug de ganar EXP infinita al desmarcar/marcar
     val dueDate: String = "",
-    val priority: String = "Medium", // Low, Medium, High
+    val priority: String = "Media", // Baja, Media, Alta
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -24,52 +25,77 @@ data class TaskEntity(
 data class TimetableSlotEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val subject: String,
-    val dayOfWeek: String, // Mon, Tue, Wed, Thu, Fri, Sat, Sun
-    val startTime: String, // e.g. "09:00"
-    val endTime: String,   // e.g. "10:30"
+    val dayOfWeek: String, // Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo
+    val startTime: String, // ej. "08:00"
+    val endTime: String,   // ej. "09:30"
     val room: String = "",
     val teacher: String = "",
     val colorHex: String = "#6366F1"
 )
 
 @Serializable
-@Entity(tableName = "study_contracts")
-data class StudyContractEntity(
+@Entity(tableName = "lessons")
+data class LessonEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val title: String,
-    val goalMinutes: Int = 60,
-    val targetDays: Int = 5,
-    val currentStreak: Int = 0,
-    val isFulfilled: Boolean = false,
-    val penaltyDescription: String = "No games for 2 hours",
-    val rewardCoins: Int = 50,
-    val rewardXp: Int = 100
+    val subject: String,
+    val summary: String = "",
+    val content: String = "",
+    val keyPoints: String = "",
+    val reviewStatus: String = "Por repasar", // Por repasar, En progreso, Dominado
+    val dateCreated: Long = System.currentTimeMillis(),
+    val studyTimeMinutes: Int = 0
 )
 
 @Serializable
-@Entity(tableName = "backpack_items")
-data class BackpackItemEntity(
+@Entity(tableName = "backpack_materials")
+data class BackpackMaterialEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
-    val category: String, // Potion, Accessory, Food, Badge
-    val iconName: String,
-    val description: String,
-    val quantity: Int = 1,
-    val price: Int = 25,
-    val isEquipped: Boolean = false
+    val subject: String = "",
+    val isPacked: Boolean = false,
+    val category: String = "Útil escolar", // Libro, Libreta, Material especial, Dispositivo, Útil escolar
+    val targetDay: String = "" // Día para el que se prepara
 )
 
 @Serializable
 @Entity(tableName = "user_profile")
 data class UserProfileEntity(
     @PrimaryKey val id: Int = 1,
-    val username: String = "Student Adventurer",
+    val username: String = "",
     val level: Int = 1,
-    val currentXp: Int = 60,
+    val currentXp: Int = 0,
     val targetXp: Int = 100,
-    val coins: Int = 120,
-    val lupoMood: String = "Energetic", // Happy, Energetic, Sleepy, Focused
-    val lupoHunger: Int = 85, // 0 - 100
-    val studyStreak: Int = 3,
-    val totalMinutesStudied: Int = 180
+    val coins: Int = 0,
+    val lupoMood: String = "Listo para estudiar", // Feliz, Enérgico, Listo para estudiar, Concentrado
+    val lupoHunger: Int = 100,
+    val studyStreak: Int = 1,
+    val totalMinutesStudied: Int = 0,
+    val language: String = "Español",
+    val country: String = "México",
+    val educationLevel: String = "Preparatoria / Bachillerato",
+    val grade: String = "1° Semestre / Año",
+    val institution: String = "",
+    val additionalInfo: String = "",
+    val isOnboardingCompleted: Boolean = false
 )
+
+@Serializable
+@Entity(tableName = "blocked_apps")
+data class BlockedAppEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val packageName: String,
+    val appName: String,
+    val appCategory: String = "Redes Sociales", // Redes Sociales, Juegos, Streaming, Mensajería, Navegadores, Otro
+    val isBlocked: Boolean = true,
+    val goalType: String = "Plan Gradual", // "Plan Gradual", "Bloqueo Total", "Límite Diario"
+    val initialDailyLimitMinutes: Int = 60,
+    val targetDailyLimitMinutes: Int = 0, // 0 = dejar de usar por completo
+    val currentDailyLimitMinutes: Int = 30,
+    val planDurationDays: Int = 21,
+    val startTimestamp: Long = System.currentTimeMillis(),
+    val motivationReason: String = "Quiero concentrarme en mis estudios y no procrastinar",
+    val dailyUsageMinutesToday: Int = 0,
+    val lastResetDate: String = ""
+)
+

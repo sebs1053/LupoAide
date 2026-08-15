@@ -24,6 +24,7 @@ import com.example.lupoaide.data.local.UserProfileEntity
 fun HomeScreen(
     profile: UserProfileEntity?,
     tasks: List<TaskEntity>,
+    tomorrowDay: String,
     onToggleTask: (TaskEntity) -> Unit,
     onOpenLupoChat: () -> Unit,
     onOpenBackpack: () -> Unit
@@ -51,16 +52,16 @@ fun HomeScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(72.dp)
+                            .size(68.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Pets,
-                            contentDescription = "Lupo Companion",
+                            contentDescription = "Lupo Compañero",
                             tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(38.dp)
                         )
                     }
 
@@ -68,16 +69,16 @@ fun HomeScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Lupo is ready!",
+                            text = "¡Lupo está contigo!",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Mood: ${profile?.lupoMood ?: "Energetic"} • Energy: ${profile?.lupoHunger ?: 85}%",
+                            text = "${profile?.educationLevel ?: "Estudiante"} • ${profile?.grade ?: ""}",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -89,7 +90,7 @@ fun HomeScreen(
                             ) {
                                 Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Ask Lupo")
+                                Text("Tutor IA")
                             }
                             OutlinedButton(
                                 onClick = onOpenBackpack,
@@ -99,7 +100,7 @@ fun HomeScreen(
                             ) {
                                 Icon(Icons.Default.Backpack, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Items")
+                                Text("Mochila ($tomorrowDay)")
                             }
                         }
                     }
@@ -107,20 +108,20 @@ fun HomeScreen(
             }
         }
 
-        // Quick Stats row
+        // Resumen de Estadísticas Rápidas
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 StatCard(
-                    title = "Focus Time",
+                    title = "Tiempo de Estudio",
                     value = "${profile?.totalMinutesStudied ?: 0} min",
                     icon = Icons.Default.Timer,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    title = "Pending Tasks",
+                    title = "Misiones Pendientes",
                     value = "${tasks.count { !it.isCompleted }}",
                     icon = Icons.Default.TaskAlt,
                     modifier = Modifier.weight(1f)
@@ -128,16 +129,22 @@ fun HomeScreen(
             }
         }
 
-        // Today's Priority Quests header
+        // Sección de Misiones de Enfoque de Hoy
         item {
-            Text(
-                text = "Today's Focus Quests",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Misiones y Tareas de Hoy",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
-        val pendingTasks = tasks.take(4)
+        val pendingTasks = tasks.take(5)
         if (pendingTasks.isEmpty()) {
             item {
                 Card(
@@ -152,7 +159,7 @@ fun HomeScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "🎉 All quests completed! Great job!",
+                            text = "✨ No tienes tareas pendientes. ¡Excelente día!",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium
                         )
@@ -196,13 +203,21 @@ fun HomeScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                            if (task.dueDate.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "📅 Entrega: ${task.dueDate}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
                         }
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             Text(
-                                text = "+${task.xpReward} XP",
+                                text = "+${task.xpReward} EXP",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,

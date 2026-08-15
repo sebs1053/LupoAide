@@ -1,6 +1,5 @@
 package com.example.lupoaide.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,11 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.lupoaide.ui.viewmodel.ChatMessage
 
@@ -37,7 +34,7 @@ fun LupoAiChatModal(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f)
+                .fillMaxHeight(0.88f)
                 .testTag("lupo_chat_dialog"),
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -57,28 +54,28 @@ fun LupoAiChatModal(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(42.dp)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Pets,
-                                contentDescription = "Lupo AI",
+                                contentDescription = "Lupo IA",
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Lupo AI Tutor",
+                                text = "Tutor Lupo IA",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Powered by Gemini",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.tertiary
+                                text = "Asistente inteligente de estudio",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -86,13 +83,13 @@ fun LupoAiChatModal(
                         onClick = onDismiss,
                         modifier = Modifier.testTag("close_chat_btn")
                     ) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Cerrar")
                     }
                 }
 
                 Divider(modifier = Modifier.padding(vertical = 12.dp))
 
-                // Messages list
+                // Mensajes
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
@@ -114,7 +111,7 @@ fun LupoAiChatModal(
                                 ),
                                 color = if (isLupo) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
                                 tonalElevation = 2.dp,
-                                modifier = Modifier.widthIn(max = 280.dp)
+                                modifier = Modifier.widthIn(max = 290.dp)
                             ) {
                                 Text(
                                     text = msg.message,
@@ -135,7 +132,7 @@ fun LupoAiChatModal(
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.surfaceVariant,
-                                    modifier = Modifier.padding(8.dp)
+                                    modifier = Modifier.padding(6.dp)
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -147,7 +144,7 @@ fun LupoAiChatModal(
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Lupo is thinking...", style = MaterialTheme.typography.bodyMedium)
+                                        Text("Lupo está pensando...", style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
                             }
@@ -165,7 +162,7 @@ fun LupoAiChatModal(
                     OutlinedTextField(
                         value = inputText,
                         onValueChange = { inputText = it },
-                        placeholder = { Text("Ask Lupo anything...") },
+                        placeholder = { Text("Pregunta sobre una materia...") },
                         modifier = Modifier
                             .weight(1f)
                             .testTag("chat_input_field"),
@@ -188,7 +185,7 @@ fun LupoAiChatModal(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Send,
-                            contentDescription = "Send",
+                            contentDescription = "Enviar",
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }

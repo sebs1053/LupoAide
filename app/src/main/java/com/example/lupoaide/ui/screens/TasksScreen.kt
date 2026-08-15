@@ -31,7 +31,7 @@ fun TasksScreen(
                 onClick = { showAddDialog = true },
                 modifier = Modifier.testTag("add_task_fab")
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Quest")
+                Icon(Icons.Default.Add, contentDescription = "Nueva Misión")
             }
         }
     ) { padding ->
@@ -42,10 +42,17 @@ fun TasksScreen(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Quests & Homework",
+                text = "Misiones y Tareas",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Completa tus tareas escolares para ganar experiencia y subir de nivel.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
 
             if (tasks.isEmpty()) {
@@ -55,11 +62,26 @@ fun TasksScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "No quests available. Tap + to add a new study goal!",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Task,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "No tienes tareas registradas",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Toca el botón + para agregar tu primera tarea o proyecto.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -101,6 +123,14 @@ fun TasksScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
+                                    if (task.dueDate.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "📅 Entrega: ${task.dueDate}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Surface(
@@ -119,7 +149,7 @@ fun TasksScreen(
                                             color = MaterialTheme.colorScheme.secondaryContainer
                                         ) {
                                             Text(
-                                                text = "+${task.xpReward} XP / +${task.coinReward} G",
+                                                text = "+${task.xpReward} EXP / +${task.coinReward} 🪙",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -130,7 +160,7 @@ fun TasksScreen(
                                 IconButton(onClick = { onDeleteTask(task.id) }) {
                                     Icon(
                                         Icons.Default.DeleteOutline,
-                                        contentDescription = "Delete",
+                                        contentDescription = "Eliminar",
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                 }

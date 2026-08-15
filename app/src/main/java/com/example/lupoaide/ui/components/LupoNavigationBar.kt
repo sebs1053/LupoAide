@@ -9,11 +9,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 enum class LupoScreen(val title: String) {
-    HOME("Home"),
-    TIMETABLE("Timetable"),
-    TASKS("Tasks"),
-    CONTRACTS("Contracts"),
-    PROFILE("Profile")
+    HOME("Inicio"),
+    TIMETABLE("Horario"),
+    TASKS("Misiones"),
+    LESSONS("Lecciones"),
+    PROFILE("Perfil")
 }
 
 @Composable
@@ -29,36 +29,36 @@ fun LupoNavigationBar(
         NavigationBarItem(
             selected = currentScreen == LupoScreen.HOME,
             onClick = { onScreenSelected(LupoScreen.HOME) },
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-            label = { Text("Home") },
+            icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
+            label = { Text("Inicio") },
             modifier = Modifier.testTag("nav_home_btn")
         )
         NavigationBarItem(
             selected = currentScreen == LupoScreen.TIMETABLE,
             onClick = { onScreenSelected(LupoScreen.TIMETABLE) },
-            icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Timetable") },
-            label = { Text("Schedule") },
+            icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Horario") },
+            label = { Text("Horario") },
             modifier = Modifier.testTag("nav_timetable_btn")
         )
         NavigationBarItem(
             selected = currentScreen == LupoScreen.TASKS,
             onClick = { onScreenSelected(LupoScreen.TASKS) },
-            icon = { Icon(Icons.Default.Assignment, contentDescription = "Tasks") },
-            label = { Text("Quests") },
+            icon = { Icon(Icons.Default.Assignment, contentDescription = "Misiones") },
+            label = { Text("Misiones") },
             modifier = Modifier.testTag("nav_tasks_btn")
         )
         NavigationBarItem(
-            selected = currentScreen == LupoScreen.CONTRACTS,
-            onClick = { onScreenSelected(LupoScreen.CONTRACTS) },
-            icon = { Icon(Icons.Default.Gavel, contentDescription = "Contracts") },
-            label = { Text("Contracts") },
-            modifier = Modifier.testTag("nav_contracts_btn")
+            selected = currentScreen == LupoScreen.LESSONS,
+            onClick = { onScreenSelected(LupoScreen.LESSONS) },
+            icon = { Icon(Icons.Default.MenuBook, contentDescription = "Lecciones") },
+            label = { Text("Lecciones") },
+            modifier = Modifier.testTag("nav_lessons_btn")
         )
         NavigationBarItem(
             selected = currentScreen == LupoScreen.PROFILE,
             onClick = { onScreenSelected(LupoScreen.PROFILE) },
-            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-            label = { Text("Profile") },
+            icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
+            label = { Text("Perfil") },
             modifier = Modifier.testTag("nav_profile_btn")
         )
     }

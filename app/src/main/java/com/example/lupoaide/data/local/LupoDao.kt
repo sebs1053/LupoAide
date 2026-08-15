@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface LupoDao {
 
-    // Tasks
+    // Tareas / Misiones
     @Query("SELECT * FROM tasks ORDER BY isCompleted ASC, timestamp DESC")
     fun getAllTasks(): Flow<List<TaskEntity>>
 
@@ -19,7 +19,7 @@ interface LupoDao {
     @Query("DELETE FROM tasks WHERE id = :id")
     suspend fun deleteTask(id: Int)
 
-    // Timetable
+    // Horario / Clases
     @Query("SELECT * FROM timetable_slots ORDER BY startTime ASC")
     fun getAllTimetableSlots(): Flow<List<TimetableSlotEntity>>
 
@@ -32,33 +32,61 @@ interface LupoDao {
     @Delete
     suspend fun deleteTimetableSlot(slot: TimetableSlotEntity)
 
-    // Study Contracts
-    @Query("SELECT * FROM study_contracts ORDER BY isFulfilled ASC, id DESC")
-    fun getAllContracts(): Flow<List<StudyContractEntity>>
+    // Lecciones / Apuntes
+    @Query("SELECT * FROM lessons ORDER BY dateCreated DESC")
+    fun getAllLessons(): Flow<List<LessonEntity>>
+
+    @Query("SELECT * FROM lessons WHERE subject = :subject ORDER BY dateCreated DESC")
+    fun getLessonsBySubject(subject: String): Flow<List<LessonEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertContract(contract: StudyContractEntity)
+    suspend fun insertLesson(lesson: LessonEntity)
 
     @Update
-    suspend fun updateContract(contract: StudyContractEntity)
+    suspend fun updateLesson(lesson: LessonEntity)
 
-    @Query("DELETE FROM study_contracts WHERE id = :id")
-    suspend fun deleteContract(id: Int)
+    @Query("DELETE FROM lessons WHERE id = :id")
+    suspend fun deleteLesson(id: Int)
 
-    // Backpack
-    @Query("SELECT * FROM backpack_items ORDER BY id ASC")
-    fun getAllBackpackItems(): Flow<List<BackpackItemEntity>>
+    // Mochila / Materiales del día siguiente
+    @Query("SELECT * FROM backpack_materials ORDER BY isPacked ASC, id ASC")
+    fun getAllBackpackMaterials(): Flow<List<BackpackMaterialEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBackpackItem(item: BackpackItemEntity)
+    suspend fun insertBackpackMaterial(material: BackpackMaterialEntity)
 
     @Update
-    suspend fun updateBackpackItem(item: BackpackItemEntity)
+    suspend fun updateBackpackMaterial(material: BackpackMaterialEntity)
 
-    // User Profile
+    @Query("DELETE FROM backpack_materials WHERE id = :id")
+    suspend fun deleteBackpackMaterial(id: Int)
+
+    @Query("DELETE FROM backpack_materials")
+    suspend fun clearAllMaterials()
+
+    // Perfil de Usuario
     @Query("SELECT * FROM user_profile WHERE id = 1")
     fun getUserProfile(): Flow<UserProfileEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveUserProfile(profile: UserProfileEntity)
+
+    // Bloqueador de Apps & Plan Gradual
+    @Query("SELECT * FROM blocked_apps ORDER BY id DESC")
+    fun getAllBlockedApps(): Flow<List<BlockedAppEntity>>
+
+    @Query("SELECT * FROM blocked_apps WHERE isBlocked = 1")
+    fun getActiveBlockedApps(): Flow<List<BlockedAppEntity>>
+
+    @Query("SELECT * FROM blocked_apps WHERE packageName = :packageName LIMIT 1")
+    suspend fun getBlockedAppByPackage(packageName: String): BlockedAppEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBlockedApp(app: BlockedAppEntity)
+
+    @Update
+    suspend fun updateBlockedApp(app: BlockedAppEntity)
+
+    @Query("DELETE FROM blocked_apps WHERE id = :id")
+    suspend fun deleteBlockedApp(id: Int)
 }

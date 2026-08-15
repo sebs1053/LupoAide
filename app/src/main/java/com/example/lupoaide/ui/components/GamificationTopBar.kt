@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -22,11 +21,13 @@ import com.example.lupoaide.data.local.UserProfileEntity
 @Composable
 fun GamificationTopBar(
     profile: UserProfileEntity?,
+    currentDateFormatted: String,
     onLupoClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .testTag("gamification_top_bar"),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 3.dp
@@ -34,7 +35,7 @@ fun GamificationTopBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -55,19 +56,19 @@ fun GamificationTopBar(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Pets,
-                            contentDescription = "Lupo Status",
+                            contentDescription = "Estado de Lupo",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = profile?.username ?: "Adventurer",
+                            text = profile?.username?.ifBlank { "Estudiante" } ?: "Estudiante",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Level ${profile?.level ?: 1} Scholar",
+                            text = "Nivel ${profile?.level ?: 1} • $currentDateFormatted",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.secondary
                         )
@@ -79,7 +80,7 @@ fun GamificationTopBar(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Coins
+                    // Monedas
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -91,7 +92,7 @@ fun GamificationTopBar(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Diamond,
-                                contentDescription = "Coins",
+                                contentDescription = "Monedas",
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -105,7 +106,7 @@ fun GamificationTopBar(
                         }
                     }
 
-                    // Streak
+                    // Racha
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.tertiaryContainer,
@@ -117,13 +118,13 @@ fun GamificationTopBar(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.LocalFireDepartment,
-                                contentDescription = "Study Streak",
+                                contentDescription = "Racha de estudio",
                                 tint = MaterialTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "${profile?.studyStreak ?: 0}d",
+                                text = "${profile?.studyStreak ?: 1}d",
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -133,12 +134,12 @@ fun GamificationTopBar(
                 }
             }
 
-            // XP Progress Bar
+            // Barra de progreso de Experiencia (XP)
             val currentXp = profile?.currentXp ?: 0
             val targetXp = profile?.targetXp ?: 100
             val progress = (currentXp.toFloat() / targetXp.toFloat()).coerceIn(0f, 1f)
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -154,7 +155,7 @@ fun GamificationTopBar(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "$currentXp/$targetXp XP",
+                    text = "$currentXp / $targetXp EXP",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
