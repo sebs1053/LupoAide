@@ -1,0 +1,6 @@
+{
+  "name": "LupoAide",
+  "description": "LupoAide - Gamified AI Study Assistant with Timetable, Habit Tracking, Quests and Lupo Companion",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
