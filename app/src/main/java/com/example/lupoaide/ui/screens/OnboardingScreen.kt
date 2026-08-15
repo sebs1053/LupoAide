@@ -392,53 +392,35 @@ fun OnboardingScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                // Permiso real del sistema
+                                // Distraction guard security badge
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = if (isPermissionActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    if (isPermissionActive) Icons.Default.CheckCircle else Icons.Default.Warning,
-                                                    contentDescription = null,
-                                                    tint = if (isPermissionActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    text = if (isPermissionActive) "Bloqueo real ACTIVO" else "Permiso de Accesibilidad",
-                                                    style = MaterialTheme.typography.labelLarge,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
+                                        Icon(
+                                            Icons.Default.VerifiedUser,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
                                             Text(
-                                                text = if (isPermissionActive)
-                                                    "Lupo detectará y bloqueará automáticamente las apps."
-                                                else
-                                                    "Actívalo en Ajustes para que Lupo pueda interceptar las apps.",
+                                                text = "Protección de Enfoque y Privacidad Segura",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "LupoAide calcula tus metas diarias y te recompensa con EXP al superar las distracciones.",
                                                 style = MaterialTheme.typography.bodySmall
                                             )
-                                        }
-
-                                        if (!isPermissionActive) {
-                                            FilledTonalButton(
-                                                onClick = {
-                                                    BlockerPermissionHelper.openAccessibilitySettings(context)
-                                                },
-                                                shape = RoundedCornerShape(8.dp),
-                                                modifier = Modifier.testTag("onboarding_grant_accessibility_btn")
-                                            ) {
-                                                Text("Activar", fontSize = 12.sp)
-                                            }
                                         }
                                     }
                                 }
