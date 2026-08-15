@@ -9,7 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lupoaide.data.local.TaskEntity
 import com.example.lupoaide.data.local.UserProfileEntity
+import com.example.lupoaide.ui.components.AddTaskDialog
+import com.example.lupoaide.ui.components.TaskVerificationDialog
 
 @Composable
 fun HomeScreen(
@@ -26,9 +28,14 @@ fun HomeScreen(
     tasks: List<TaskEntity>,
     tomorrowDay: String,
     onToggleTask: (TaskEntity) -> Unit,
+    onVerifyTask: (TaskEntity, String) -> Unit,
+    onAddTask: (title: String, desc: String, subject: String, xp: Int, coins: Int, dueDate: String, priority: String) -> Unit,
     onOpenLupoChat: () -> Unit,
     onOpenBackpack: () -> Unit
 ) {
+    var showAddTaskDialog by remember { mutableStateOf(false) }
+    var taskToVerify by remember { mutableStateOf<TaskEntity?>(null) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -69,7 +76,7 @@ fun HomeScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "¡Lupo está contigo!",
+                            text = "¡Hola, ${profile?.username?.ifBlank { "Estudiante" } ?: "Estudiante"}!",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -129,22 +136,40 @@ fun HomeScreen(
             }
         }
 
-        // Sección de Misiones de Enfoque de Hoy
+        // Sección de Misiones de Enfoque de Hoy con botón directo de añadir
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Misiones y Tareas de Hoy",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = "Misiones y Tareas",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Comprobación verificada con recompensas",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                FilledTonalButton(
+                    onClick = { showAddTaskDialog = true },
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.testTag("home_add_task_btn")
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Nueva Tarea", fontSize = 12.sp)
+                }
             }
         }
 
-        val pendingTasks = tasks.take(5)
+        val pendingTasks = tasks.take(6)
         if (pendingTasks.isEmpty()) {
             item {
                 Card(
@@ -159,8 +184,8 @@ fun HomeScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "✨ No tienes tareas pendientes. ¡Excelente día!",
-                            style = MaterialTheme.typography.bodyLarge,
+                            text = "✨ No tienes tareas pendientes. ¡Toca 'Nueva Tarea' para crear una!",
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -184,18 +209,42 @@ fun HomeScreen(
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(
-                            checked = task.isCompleted,
-                            onCheckedChange = { onToggleTask(task) },
-                            modifier = Modifier.testTag("task_checkbox_${task.id}")
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = task.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                        IconButton(
+                            onClick = {
+                                if (task.isCompleted) {
+                                    onToggleTask(task)
+                                } else {
+                                    taskToVerify = task
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (task.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                contentDescription = "Comprobar tarea",
+                                tint = if (task.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = task.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (task.isVerified) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        Icons.Default.Verified,
+                                        contentDescription = "Verificada",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
                             if (task.description.isNotBlank()) {
                                 Text(
                                     text = task.description,
@@ -212,6 +261,7 @@ fun HomeScreen(
                                 )
                             }
                         }
+
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.secondaryContainer
@@ -228,6 +278,24 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (showAddTaskDialog) {
+        AddTaskDialog(
+            onDismiss = { showAddTaskDialog = false },
+            onAdd = onAddTask
+        )
+    }
+
+    taskToVerify?.let { task ->
+        TaskVerificationDialog(
+            task = task,
+            onDismiss = { taskToVerify = null },
+            onVerifyAndClaim = { proof ->
+                onVerifyTask(task, proof)
+                taskToVerify = null
+            }
+        )
     }
 }
 

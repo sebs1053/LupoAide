@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
         UserProfileEntity::class,
         BlockedAppEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class LupoDatabase : RoomDatabase() {

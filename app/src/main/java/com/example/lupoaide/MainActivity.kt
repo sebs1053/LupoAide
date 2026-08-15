@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
                 val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle()
                 val isThinking by viewModel.isLupoThinking.collectAsStateWithLifecycle()
+                val isGeneratingLesson by viewModel.isGeneratingLesson.collectAsStateWithLifecycle()
 
                 var currentScreen by remember { mutableStateOf(LupoScreen.HOME) }
                 var showChatModal by remember { mutableStateOf(false) }
@@ -82,6 +83,12 @@ class MainActivity : ComponentActivity() {
                                     tasks = tasks,
                                     tomorrowDay = viewModel.tomorrowSpanishDay,
                                     onToggleTask = { viewModel.toggleTaskCompletion(it) },
+                                    onVerifyTask = { task, proof ->
+                                        viewModel.verifyAndCompleteTask(task, proof)
+                                    },
+                                    onAddTask = { title, desc, sub, xp, coins, due, priority ->
+                                        viewModel.addTask(title, desc, sub, xp, coins, due, priority)
+                                    },
                                     onOpenLupoChat = { showChatModal = true },
                                     onOpenBackpack = { showBackpackModal = true }
                                 )
@@ -89,14 +96,20 @@ class MainActivity : ComponentActivity() {
                                     slots = slots,
                                     selectedDay = selectedDay,
                                     onSelectDay = { viewModel.setSelectedDay(it) },
-                                    onAddSlot = { sub, day, start, end, room, teacher ->
-                                        viewModel.addTimetableSlot(sub, day, start, end, room, teacher)
+                                    onAddMultipleSlots = { sub, daysSet, start, end, room, teacher ->
+                                        viewModel.addMultipleTimetableSlots(sub, daysSet, start, end, room, teacher)
                                     },
-                                    onDeleteSlot = { viewModel.deleteTimetableSlot(it) }
+                                    onDeleteSlot = { viewModel.deleteTimetableSlot(it) },
+                                    onAddTaskForSubject = { title, desc, sub, xp, coins, due, priority ->
+                                        viewModel.addTask(title, desc, sub, xp, coins, due, priority)
+                                    }
                                 )
                                 LupoScreen.TASKS -> TasksScreen(
                                     tasks = tasks,
                                     onToggleTask = { viewModel.toggleTaskCompletion(it) },
+                                    onVerifyTask = { task, proof ->
+                                        viewModel.verifyAndCompleteTask(task, proof)
+                                    },
                                     onDeleteTask = { viewModel.deleteTask(it) },
                                     onAddTask = { title, desc, sub, xp, coins, due, priority ->
                                         viewModel.addTask(title, desc, sub, xp, coins, due, priority)
@@ -104,8 +117,13 @@ class MainActivity : ComponentActivity() {
                                 )
                                 LupoScreen.LESSONS -> LessonsScreen(
                                     lessons = lessons,
+                                    isAiConnected = viewModel.isAiConnected(),
+                                    isGeneratingLesson = isGeneratingLesson,
                                     onAddLesson = { title, subject, summary, content, keyPoints ->
                                         viewModel.addLesson(title, subject, summary, content, keyPoints)
+                                    },
+                                    onGenerateAiLesson = { subject, topic ->
+                                        viewModel.generateLessonWithAi(subject, topic)
                                     },
                                     onUpdateLesson = { viewModel.updateLesson(it) },
                                     onDeleteLesson = { viewModel.deleteLesson(it) },

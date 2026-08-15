@@ -15,7 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.lupoaide.data.local.TimetableSlotEntity
+import com.example.lupoaide.ui.components.AddTaskDialog
 import com.example.lupoaide.ui.components.AddTimetableSlotDialog
 
 @Composable
@@ -23,11 +25,13 @@ fun TimetableScreen(
     slots: List<TimetableSlotEntity>,
     selectedDay: String,
     onSelectDay: (String) -> Unit,
-    onAddSlot: (String, String, String, String, String, String) -> Unit,
-    onDeleteSlot: (TimetableSlotEntity) -> Unit
+    onAddMultipleSlots: (subject: String, selectedDays: Set<String>, start: String, end: String, room: String, teacher: String) -> Unit,
+    onDeleteSlot: (TimetableSlotEntity) -> Unit,
+    onAddTaskForSubject: (title: String, desc: String, subject: String, xp: Int, coins: Int, dueDate: String, priority: String) -> Unit
 ) {
     val days = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
     var showAddDialog by remember { mutableStateOf(false) }
+    var taskSubjectForDialog by remember { mutableStateOf<String?>(null) }
 
     val daySlots = slots.filter { it.dayOfWeek.equals(selectedDay, ignoreCase = true) }
 
@@ -54,8 +58,8 @@ fun TimetableScreen(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Organiza tus materias, aulas y profesores de cada día de la semana.",
-                style = MaterialTheme.typography.bodyMedium,
+                text = "Configura tus clases repetitivas y añade tareas directamente a cada materia.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
@@ -103,13 +107,13 @@ fun TimetableScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "No hay clases programadas para el $selectedDay",
+                            text = "No hay clases registradas para el $selectedDay",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Toca el botón + para registrar una clase en este día.",
+                            text = "Toca el botón + para añadir una clase (puedes elegir varios días a la vez).",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                         )
@@ -126,62 +130,80 @@ fun TimetableScreen(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(14.dp)
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.width(64.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = slot.startTime,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = slot.endTime,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.width(60.dp)
+                                    ) {
+                                        Text(
+                                            text = slot.startTime,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = slot.endTime,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
 
-                                Spacer(modifier = Modifier.width(16.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
 
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = slot.subject,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        if (slot.room.isNotBlank()) {
-                                            Text(
-                                                text = "📍 ${slot.room}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = slot.subject,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            if (slot.room.isNotBlank()) {
+                                                Text(
+                                                    text = "📍 ${slot.room}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            if (slot.teacher.isNotBlank()) {
+                                                Text(
+                                                    text = "👤 ${slot.teacher}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
-                                        if (slot.teacher.isNotBlank()) {
-                                            Text(
-                                                text = "👤 ${slot.teacher}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
+                                    }
+
+                                    IconButton(onClick = { onDeleteSlot(slot) }) {
+                                        Icon(
+                                            Icons.Default.DeleteOutline,
+                                            contentDescription = "Eliminar",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
                                     }
                                 }
 
-                                IconButton(onClick = { onDeleteSlot(slot) }) {
-                                    Icon(
-                                        Icons.Default.DeleteOutline,
-                                        contentDescription = "Eliminar",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Botón rápido para añadir tarea a esta materia
+                                FilledTonalButton(
+                                    onClick = { taskSubjectForDialog = slot.subject },
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Icon(Icons.Default.AddTask, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("+ Tarea de ${slot.subject}", fontSize = 12.sp)
                                 }
                             }
                         }
@@ -194,7 +216,18 @@ fun TimetableScreen(
             AddTimetableSlotDialog(
                 currentDay = selectedDay,
                 onDismiss = { showAddDialog = false },
-                onAdd = onAddSlot
+                onAddMultipleDays = onAddMultipleSlots
+            )
+        }
+
+        taskSubjectForDialog?.let { subject ->
+            AddTaskDialog(
+                initialSubject = subject,
+                onDismiss = { taskSubjectForDialog = null },
+                onAdd = { title, desc, sub, xp, coins, due, priority ->
+                    onAddTaskForSubject(title, desc, sub, xp, coins, due, priority)
+                    taskSubjectForDialog = null
+                }
             )
         }
     }

@@ -20,13 +20,38 @@ class LupoRepository(private val dao: LupoDao) {
     suspend fun updateTask(task: TaskEntity) = dao.updateTask(task)
     suspend fun deleteTask(id: Int) = dao.deleteTask(id)
 
+    suspend fun verifyAndCompleteTask(
+        task: TaskEntity,
+        proofText: String,
+        bonusXp: Int,
+        currentProfile: UserProfileEntity?
+    ) {
+        val wasAlreadyClaimed = task.rewardClaimed
+        val updatedTask = task.copy(
+            isCompleted = true,
+            rewardClaimed = true,
+            isVerified = true,
+            verificationProof = proofText
+        )
+        dao.updateTask(updatedTask)
+
+        if (!wasAlreadyClaimed && currentProfile != null) {
+            val totalXp = task.xpReward + bonusXp
+            awardExperienceAndCoins(
+                currentProfile = currentProfile,
+                earnedXp = totalXp,
+                earnedCoins = task.coinReward
+            )
+        }
+    }
+
     suspend fun toggleTaskCompletion(task: TaskEntity, currentProfile: UserProfileEntity?) {
         val willBeCompleted = !task.isCompleted
 
         if (willBeCompleted) {
             // Si nunca se había reclamado la recompensa de esta tarea
             if (!task.rewardClaimed && currentProfile != null) {
-                val updatedTask = task.copy(isCompleted = true, rewardClaimed = true)
+                val updatedTask = task.copy(isCompleted = true, rewardClaimed = true, isVerified = true)
                 dao.updateTask(updatedTask)
 
                 // Otorgar experiencia y monedas de forma segura
@@ -66,6 +91,11 @@ class LupoRepository(private val dao: LupoDao) {
 
     // Horario
     suspend fun addSlot(slot: TimetableSlotEntity) = dao.insertTimetableSlot(slot)
+    suspend fun addMultipleSlots(slots: List<TimetableSlotEntity>) {
+        for (slot in slots) {
+            dao.insertTimetableSlot(slot)
+        }
+    }
     suspend fun deleteSlot(slot: TimetableSlotEntity) = dao.deleteTimetableSlot(slot)
 
     // Mochila y Materiales del día siguiente

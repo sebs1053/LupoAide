@@ -64,6 +64,11 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
     private val _isLupoThinking = MutableStateFlow(false)
     val isLupoThinking: StateFlow<Boolean> = _isLupoThinking.asStateFlow()
 
+    private val _isGeneratingLesson = MutableStateFlow(false)
+    val isGeneratingLesson: StateFlow<Boolean> = _isGeneratingLesson.asStateFlow()
+
+    fun isAiConnected(): Boolean = geminiService.isAiConfigured()
+
     init {
         val database = LupoDatabase.getDatabase(application)
         repository = LupoRepository(database.lupoDao())
@@ -153,6 +158,31 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun verifyAndCompleteTask(
+        task: TaskEntity,
+        proofText: String,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            val verification = geminiService.verifyTaskWithAi(
+                taskTitle = task.title,
+                subject = task.subject,
+                studentProof = proofText
+            )
+            if (verification.isApproved) {
+                repository.verifyAndCompleteTask(
+                    task = task,
+                    proofText = proofText,
+                    bonusXp = verification.bonusXp,
+                    currentProfile = userProfile.value
+                )
+                onResult(true, verification.feedbackMessage)
+            } else {
+                onResult(false, verification.feedbackMessage)
+            }
+        }
+    }
+
     fun addTask(title: String, description: String, subject: String, xp: Int, coins: Int, dueDate: String, priority: String) {
         viewModelScope.launch {
             repository.addTask(
@@ -191,13 +221,36 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun addMultipleTimetableSlots(
+        subject: String,
+        selectedDays: Set<String>,
+        start: String,
+        end: String,
+        room: String,
+        teacher: String
+    ) {
+        viewModelScope.launch {
+            val slots = selectedDays.map { day ->
+                TimetableSlotEntity(
+                    subject = subject,
+                    dayOfWeek = day,
+                    startTime = start,
+                    endTime = end,
+                    room = room,
+                    teacher = teacher
+                )
+            }
+            repository.addMultipleSlots(slots)
+        }
+    }
+
     fun deleteTimetableSlot(slot: TimetableSlotEntity) {
         viewModelScope.launch {
             repository.deleteSlot(slot)
         }
     }
 
-    // Lecciones / Apuntes
+    // Lecciones / Apuntes generadas manualmente o con IA
     fun addLesson(title: String, subject: String, summary: String, content: String, keyPoints: String) {
         viewModelScope.launch {
             repository.addLesson(
@@ -210,6 +263,40 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
                     reviewStatus = "Por repasar"
                 )
             )
+        }
+    }
+
+    fun generateLessonWithAi(
+        subject: String,
+        topic: String,
+        onFinished: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        if (topic.isBlank()) return
+        _isGeneratingLesson.value = true
+
+        viewModelScope.launch {
+            try {
+                val result = geminiService.generateAiLesson(
+                    subject = subject,
+                    topic = topic,
+                    userProfile = userProfile.value
+                )
+                repository.addLesson(
+                    LessonEntity(
+                        title = result.title,
+                        subject = result.subject,
+                        summary = result.summary,
+                        content = result.content,
+                        keyPoints = result.keyPoints,
+                        reviewStatus = "Por repasar"
+                    )
+                )
+                _isGeneratingLesson.value = false
+                onFinished(true, "¡Lección generada exitosamente por Lupo IA!")
+            } catch (e: Exception) {
+                _isGeneratingLesson.value = false
+                onFinished(false, "Hubo un problema al generar la lección: ${e.localizedMessage}")
+            }
         }
     }
 

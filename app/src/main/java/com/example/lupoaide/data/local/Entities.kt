@@ -15,6 +15,8 @@ data class TaskEntity(
     val coinReward: Int = 15,
     val isCompleted: Boolean = false,
     val rewardClaimed: Boolean = false, // Evita bug de ganar EXP infinita al desmarcar/marcar
+    val isVerified: Boolean = false,     // Comprobación real de que se hizo la tarea
+    val verificationProof: String = "",  // Evidencia o respuesta de comprobación del estudiante
     val dueDate: String = "",
     val priority: String = "Media", // Baja, Media, Alta
     val timestamp: Long = System.currentTimeMillis()

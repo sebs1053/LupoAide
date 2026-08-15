@@ -15,17 +15,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.lupoaide.data.local.TaskEntity
 import com.example.lupoaide.ui.components.AddTaskDialog
+import com.example.lupoaide.ui.components.TaskVerificationDialog
 
 @Composable
 fun TasksScreen(
     tasks: List<TaskEntity>,
     onToggleTask: (TaskEntity) -> Unit,
+    onVerifyTask: (TaskEntity, String) -> Unit,
     onDeleteTask: (Int) -> Unit,
     onAddTask: (title: String, desc: String, subject: String, xp: Int, coins: Int, dueDate: String, priority: String) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
+    var taskToVerify by remember { mutableStateOf<TaskEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddDialog = true },
@@ -41,17 +47,24 @@ fun TasksScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Text(
-                text = "Misiones y Tareas",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Completa tus tareas escolares para ganar experiencia y subir de nivel.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Misiones y Tareas",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Comprueba tus tareas para ganar EXP y subir de nivel sin trampas.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -102,20 +115,66 @@ fun TasksScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
+                                    .padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Checkbox(
-                                    checked = task.isCompleted,
-                                    onCheckedChange = { onToggleTask(task) }
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = task.title,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
+                                // Botón de comprobación interactivo
+                                IconButton(
+                                    onClick = {
+                                        if (task.isCompleted) {
+                                            onToggleTask(task)
+                                        } else {
+                                            taskToVerify = task
+                                        }
+                                    },
+                                    modifier = Modifier.testTag("task_check_btn_${task.id}")
+                                ) {
+                                    Icon(
+                                        imageVector = if (task.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                        contentDescription = "Comprobar tarea",
+                                        tint = if (task.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = task.title,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (task.isVerified) {
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Verified,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(12.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(3.dp))
+                                                    Text(
+                                                        text = "Comprobada",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     if (task.description.isNotBlank()) {
                                         Text(
                                             text = task.description,
@@ -123,6 +182,16 @@ fun TasksScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
+
+                                    if (task.verificationProof.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "📝 Evidencia: \"${task.verificationProof}\"",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+
                                     if (task.dueDate.isNotBlank()) {
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
@@ -131,6 +200,7 @@ fun TasksScreen(
                                             color = MaterialTheme.colorScheme.secondary
                                         )
                                     }
+
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Surface(
@@ -157,6 +227,7 @@ fun TasksScreen(
                                         }
                                     }
                                 }
+
                                 IconButton(onClick = { onDeleteTask(task.id) }) {
                                     Icon(
                                         Icons.Default.DeleteOutline,
@@ -175,6 +246,17 @@ fun TasksScreen(
             AddTaskDialog(
                 onDismiss = { showAddDialog = false },
                 onAdd = onAddTask
+            )
+        }
+
+        taskToVerify?.let { task ->
+            TaskVerificationDialog(
+                task = task,
+                onDismiss = { taskToVerify = null },
+                onVerifyAndClaim = { proof ->
+                    onVerifyTask(task, proof)
+                    taskToVerify = null
+                }
             )
         }
     }
