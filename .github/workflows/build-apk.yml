@@ -25,9 +25,14 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Ensure Local Properties & Secrets
+      - name: Setup Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.11.1'
+          cache-disabled: true
+
+      - name: Setup Dummy Env & SDK Config
         run: |
-          # Locate project directory
           TARGET_DIR="."
           if [ ! -f "./settings.gradle.kts" ] && [ ! -f "./settings.gradle" ]; then
             SETTINGS_FILE=$(find . -name "settings.gradle.kts" -o -name "settings.gradle" | head -n 1)
@@ -36,15 +41,13 @@ jobs:
             fi
           fi
 
-          echo "Configuring in $TARGET_DIR"
+          echo "Working in: $TARGET_DIR"
           cd "$TARGET_DIR"
 
-          # Create dummy .env file if required by secrets plugin / BuildConfig
           if [ ! -f ".env" ]; then
             echo "GEMINI_API_KEY=dummy_key_for_build" > .env
           fi
 
-          # Ensure local.properties points to Android SDK
           if [ -n "$ANDROID_HOME" ]; then
             echo "sdk.dir=$ANDROID_HOME" > local.properties
           fi
@@ -60,12 +63,8 @@ jobs:
           fi
           cd "$TARGET_DIR"
 
-          if [ -f "./gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew assembleDebug --no-daemon --stacktrace
-          else
-            gradle assembleDebug --no-daemon --stacktrace
-          fi
+          # Use gradle with compilation arguments, no daemon and no configuration cache to prevent KSP failure
+          gradle assembleDebug --no-daemon --no-configuration-cache --stacktrace -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=1024m"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
