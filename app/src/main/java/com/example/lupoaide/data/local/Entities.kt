@@ -17,6 +17,7 @@ data class TaskEntity(
     val rewardClaimed: Boolean = false, // Evita bug de ganar EXP infinita al desmarcar/marcar
     val isVerified: Boolean = false,     // Comprobación real de que se hizo la tarea
     val verificationProof: String = "",  // Evidencia o respuesta de comprobación del estudiante
+    val aiFeedback: String = "",         // Evaluación y comentarios pedagógicos generados por Lupo IA
     val dueDate: String = "",
     val priority: String = "Media", // Baja, Media, Alta
     val timestamp: Long = System.currentTimeMillis()
@@ -79,7 +80,38 @@ data class UserProfileEntity(
     val grade: String = "1° Semestre / Año",
     val institution: String = "",
     val additionalInfo: String = "",
-    val isOnboardingCompleted: Boolean = false
+    val isOnboardingCompleted: Boolean = false,
+    val activeOutfitId: String = "default", // default, scholar, scientist, coder, artist, focus_master, king
+    val unlockedOutfits: String = "default"  // Comma-separated list of unlocked outfit IDs
+)
+
+@Serializable
+@Entity(tableName = "flashcards")
+data class FlashcardEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val lessonId: Int? = null,
+    val subject: String = "General",
+    val question: String,
+    val answer: String,
+    val hint: String = "",
+    val reviewCount: Int = 0,
+    val isMastered: Boolean = false,
+    val lastReviewed: Long = 0
+)
+
+@Serializable
+@Entity(tableName = "exams")
+data class ExamEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val subject: String,
+    val title: String,
+    val examDate: String, // YYYY-MM-DD
+    val examTime: String = "08:00 AM",
+    val room: String = "",
+    val notes: String = "",
+    val isCompleted: Boolean = false,
+    val gradeAchieved: String = "",
+    val timestamp: Long = System.currentTimeMillis()
 )
 
 @Serializable

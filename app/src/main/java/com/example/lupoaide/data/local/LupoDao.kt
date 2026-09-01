@@ -89,4 +89,42 @@ interface LupoDao {
 
     @Query("DELETE FROM blocked_apps WHERE id = :id")
     suspend fun deleteBlockedApp(id: Int)
+
+    // Tarjetas de Repaso (Flashcards)
+    @Query("SELECT * FROM flashcards ORDER BY isMastered ASC, id DESC")
+    fun getAllFlashcards(): Flow<List<FlashcardEntity>>
+
+    @Query("SELECT * FROM flashcards WHERE subject = :subject ORDER BY isMastered ASC, id DESC")
+    fun getFlashcardsBySubject(subject: String): Flow<List<FlashcardEntity>>
+
+    @Query("SELECT * FROM flashcards WHERE lessonId = :lessonId ORDER BY id ASC")
+    fun getFlashcardsByLesson(lessonId: Int): Flow<List<FlashcardEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFlashcard(flashcard: FlashcardEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFlashcards(flashcards: List<FlashcardEntity>)
+
+    @Update
+    suspend fun updateFlashcard(flashcard: FlashcardEntity)
+
+    @Query("DELETE FROM flashcards WHERE id = :id")
+    suspend fun deleteFlashcard(id: Int)
+
+    // Exámenes y Evaluaciones Próximas
+    @Query("SELECT * FROM exams ORDER BY isCompleted ASC, examDate ASC, examTime ASC")
+    fun getAllExams(): Flow<List<ExamEntity>>
+
+    @Query("SELECT * FROM exams WHERE isCompleted = 0 ORDER BY examDate ASC, examTime ASC")
+    fun getUpcomingExams(): Flow<List<ExamEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExam(exam: ExamEntity)
+
+    @Update
+    suspend fun updateExam(exam: ExamEntity)
+
+    @Query("DELETE FROM exams WHERE id = :id")
+    suspend fun deleteExam(id: Int)
 }

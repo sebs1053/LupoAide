@@ -16,12 +16,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lupoaide.data.local.LessonEntity
 import com.example.lupoaide.ui.components.GenerateAiLessonDialog
+import com.example.lupoaide.ui.components.ShareLessonUtils
 import kotlinx.coroutines.delay
 
 @Composable
@@ -34,8 +36,12 @@ fun LessonsScreen(
     onUpdateLesson: (LessonEntity) -> Unit,
     onDeleteLesson: (Int) -> Unit,
     onAskLupoAboutLesson: (lessonTitle: String, subject: String) -> Unit,
-    onCompleteStudySession: (lessonId: Int, minutes: Int) -> Unit
+    onCompleteStudySession: (lessonId: Int, minutes: Int) -> Unit,
+    onGenerateFlashcardsForLesson: (LessonEntity) -> Unit = {},
+    onStartQuizForLesson: (LessonEntity) -> Unit = {},
+    onOpenAllFlashcards: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     var showAddDialog by remember { mutableStateOf(false) }
     var showAiGenerateDialog by remember { mutableStateOf(false) }
     var selectedSubjectFilter by remember { mutableStateOf("Todas") }
@@ -58,6 +64,15 @@ fun LessonsScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                SmallFloatingActionButton(
+                    onClick = onOpenAllFlashcards,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.testTag("flashcards_fab")
+                ) {
+                    Icon(Icons.Default.Style, contentDescription = "Ver Flashcards")
+                }
+
                 // Botón IA flotante
                 ExtendedFloatingActionButton(
                     onClick = { showAiGenerateDialog = true },
@@ -279,30 +294,71 @@ fun LessonsScreen(
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Button(
                                         onClick = { activeStudyTimerLesson = lesson },
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Estudiar (Timer)")
+                                        Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Timer", fontSize = 11.sp)
                                     }
 
                                     OutlinedButton(
                                         onClick = { onAskLupoAboutLesson(lesson.title, lesson.subject) },
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
-                                        Icon(Icons.Default.Pets, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.Pets, contentDescription = null, modifier = Modifier.size(14.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Tutor IA")
+                                        Text("Tutor IA", fontSize = 11.sp)
                                     }
 
-                                    IconButton(onClick = { onDeleteLesson(lesson.id) }) {
-                                        Icon(Icons.Default.DeleteOutline, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                                    IconButton(
+                                        onClick = { ShareLessonUtils.shareLesson(context, lesson) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.Share, contentDescription = "Compartir apunte", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                    }
+
+                                    IconButton(
+                                        onClick = { onDeleteLesson(lesson.id) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.DeleteOutline, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    FilledTonalButton(
+                                        onClick = { onGenerateFlashcardsForLesson(lesson) },
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(Icons.Default.Style, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("🃏 Flashcards IA", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+
+                                    FilledTonalButton(
+                                        onClick = { onStartQuizForLesson(lesson) },
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("📝 Simulacro Quiz", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -485,8 +541,15 @@ fun LessonsScreen(
                     }
                 },
                 confirmButton = {
-                    Button(onClick = { viewingLesson = null }) {
-                        Text("Cerrar")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { ShareLessonUtils.shareLesson(context, lesson) }) {
+                            Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Compartir")
+                        }
+                        Button(onClick = { viewingLesson = null }) {
+                            Text("Cerrar")
+                        }
                     }
                 }
             )

@@ -43,7 +43,8 @@ fun ProfileScreen(
         planDays: Int,
         motivation: String
     ) -> Unit = { _, _, _, _, _, _, _, _ -> },
-    onOpenBackpack: () -> Unit
+    onOpenBackpack: () -> Unit,
+    onOpenShop: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var showEditProfileDialog by remember { mutableStateOf(false) }
@@ -443,6 +444,72 @@ fun ProfileScreen(
                         Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Editar Datos de Perfil")
+                    }
+                }
+            }
+        }
+
+        // Lupo Wardrobe & Shop
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = when (profile?.activeOutfitId) {
+                                    "wizard" -> "🧙‍♂️"
+                                    "graduate" -> "🎓"
+                                    "astronaut" -> "👨‍🚀"
+                                    "detective" -> "🕵️"
+                                    "samurai" -> "⚔️"
+                                    "robot" -> "🤖"
+                                    "golden" -> "👑"
+                                    else -> "🐺"
+                                },
+                                fontSize = 24.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                text = "Lupo: ${profile?.activeOutfitId?.replaceFirstChar { it.uppercase() } ?: "Clásico"}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${profile?.coins ?: 0} Monedas disponibles",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    FilledTonalButton(
+                        onClick = onOpenShop,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.ShoppingBag, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Tienda")
                     }
                 }
             }

@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lupoaide.data.local.TaskEntity
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,8 +155,8 @@ fun AddTimetableSlotDialog(
 ) {
     var subject by remember { mutableStateOf("") }
     var selectedDays by remember { mutableStateOf(setOf(currentDay)) }
-    var start by remember { mutableStateOf("08:00") }
-    var end by remember { mutableStateOf("09:30") }
+    var start by remember { mutableStateOf("08:00 AM") }
+    var end by remember { mutableStateOf("09:30 AM") }
     var room by remember { mutableStateOf("") }
     var teacher by remember { mutableStateOf("") }
 
@@ -211,7 +212,7 @@ fun AddTimetableSlotDialog(
                 }
 
                 Text(
-                    text = "Horario de la clase (Selector estándar de Google):",
+                    text = "Horario de la clase (Selector estándar de Google con AM/PM):",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -274,7 +275,7 @@ fun AddTimetableSlotDialog(
 }
 
 /**
- * Diálogo interactivo para comprobar si el estudiante realmente realizó la tarea.
+ * Diálogo interactivo para comprobar si el estudiante realmente realizó la tarea con Inteligencia Artificial Lupo.
  */
 @Composable
 fun TaskVerificationDialog(
@@ -283,7 +284,10 @@ fun TaskVerificationDialog(
     onVerifyAndClaim: (proofText: String) -> Unit
 ) {
     var proofText by remember { mutableStateOf("") }
-    var isChecking by remember { mutableStateOf(false) }
+    var isAnalyzingWithAi by remember { mutableStateOf(false) }
+    var aiFeedbackMessage by remember { mutableStateOf<String?>(null) }
+    var bonusXpAwarded by remember { mutableStateOf(15) }
+    val coroutineScope = rememberCoroutineScope()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -293,10 +297,10 @@ fun TaskVerificationDialog(
                     Icons.Default.Verified,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(28.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Comprobación de Tarea", fontWeight = FontWeight.Bold)
+                Text("Comprobación con Lupo IA", fontWeight = FontWeight.Bold)
             }
         },
         text = {
@@ -305,10 +309,10 @@ fun TaskVerificationDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -324,6 +328,7 @@ fun TaskVerificationDialog(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         if (task.description.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Instrucciones: ${task.description}",
                                 style = MaterialTheme.typography.bodySmall,
@@ -334,63 +339,167 @@ fun TaskVerificationDialog(
                 }
 
                 Text(
-                    text = "Para evitar bugs de EXP y garantizar tu aprendizaje real, resume brevemente lo que hiciste o aprendiste:",
+                    text = "Describe brevemente tu procedimiento, resumen o resultados. Lupo IA analizará tu evidencia para validar tu aprendizaje y otorgarte EXP:",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
 
                 OutlinedTextField(
                     value = proofText,
-                    onValueChange = { proofText = it },
-                    label = { Text("Resumen de entrega / Evidencia *") },
-                    placeholder = { Text("Ej. Resolví los 5 problemas de integrales por sustitución y comprobé el resultado.") },
+                    onValueChange = {
+                        proofText = it
+                        // Reset previous feedback when text changes
+                        if (aiFeedbackMessage != null) {
+                            aiFeedbackMessage = null
+                        }
+                    },
+                    label = { Text("Tu evidencia o procedimiento de la tarea *") },
+                    placeholder = { Text("Ej. Resolví los problemas del 1 al 10 usando la regla de la cadena y comprobé los signos...") },
                     minLines = 3,
                     maxLines = 6,
                     modifier = Modifier.fillMaxWidth().testTag("task_proof_input"),
                     shape = RoundedCornerShape(12.dp)
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Recompensa legítima:",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                // Tarjeta de Evaluación de Lupo IA en tiempo real
+                if (isAnalyzingWithAi) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "🐺 Lupo IA está analizando tu evidencia...",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Comprobando comprensión pedagógica...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else if (aiFeedbackMessage != null) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "¡Evaluación Aprobada por Lupo IA! ✨",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = aiFeedbackMessage ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            ) {
+                                Text(
+                                    text = "+${task.xpReward + bonusXpAwarded} EXP Totales (+${bonusXpAwarded} Bono IA) / +${task.coinReward} 🪙",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "+${task.xpReward} EXP / +${task.coinReward} 🪙 (+10 Bono IA)",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            text = "Recompensa base + Bono IA:",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Text(
+                                text = "+${task.xpReward} EXP / +${task.coinReward} 🪙 (+15 Bono IA)",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    if (proofText.trim().length >= 3) {
-                        isChecking = true
-                        onVerifyAndClaim(proofText)
-                    }
-                },
-                enabled = proofText.trim().length >= 3 && !isChecking,
-                modifier = Modifier.testTag("verify_task_confirm_btn")
-            ) {
-                if (isChecking) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
+            if (aiFeedbackMessage != null) {
+                Button(
+                    onClick = {
+                        onVerifyAndClaim(proofText.trim())
+                    },
+                    modifier = Modifier.testTag("claim_verified_task_btn")
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
+                    Text("Reclamar y Terminar")
                 }
-                Text("Comprobar y Reclamar")
+            } else {
+                Button(
+                    onClick = {
+                        if (proofText.trim().length >= 3) {
+                            isAnalyzingWithAi = true
+                            coroutineScope.launch {
+                                val service = com.example.lupoaide.data.remote.GeminiStudyService()
+                                val result = service.verifyTaskWithAi(
+                                    taskTitle = task.title,
+                                    subject = task.subject,
+                                    studentProof = proofText.trim()
+                                )
+                                isAnalyzingWithAi = false
+                                aiFeedbackMessage = result.feedbackMessage
+                                bonusXpAwarded = result.bonusXp
+                            }
+                        }
+                    },
+                    enabled = proofText.trim().length >= 3 && !isAnalyzingWithAi,
+                    modifier = Modifier.testTag("verify_task_confirm_btn")
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Comprobar con IA")
+                }
             }
         },
         dismissButton = {

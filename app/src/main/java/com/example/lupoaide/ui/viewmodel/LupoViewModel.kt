@@ -31,6 +31,9 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
     val userProfile: StateFlow<UserProfileEntity?>
     val blockedApps: StateFlow<List<BlockedAppEntity>>
     val activeBlockedApps: StateFlow<List<BlockedAppEntity>>
+    val flashcards: StateFlow<List<FlashcardEntity>>
+    val exams: StateFlow<List<ExamEntity>>
+    val upcomingExams: StateFlow<List<ExamEntity>>
 
     // Fecha y día real actual del sistema
     private val todaySpanishDay = getTodayDayOfWeekSpanish()
@@ -66,6 +69,12 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isGeneratingLesson = MutableStateFlow(false)
     val isGeneratingLesson: StateFlow<Boolean> = _isGeneratingLesson.asStateFlow()
+
+    private val _isGeneratingFlashcards = MutableStateFlow(false)
+    val isGeneratingFlashcards: StateFlow<Boolean> = _isGeneratingFlashcards.asStateFlow()
+
+    private val _isGeneratingQuiz = MutableStateFlow(false)
+    val isGeneratingQuiz: StateFlow<Boolean> = _isGeneratingQuiz.asStateFlow()
 
     fun isAiConnected(): Boolean = geminiService.isAiConfigured()
 
@@ -110,6 +119,24 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         activeBlockedApps = repository.activeBlockedApps.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+        flashcards = repository.allFlashcards.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+        exams = repository.allExams.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+        upcomingExams = repository.upcomingExams.stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
             emptyList()
@@ -173,6 +200,7 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
                 repository.verifyAndCompleteTask(
                     task = task,
                     proofText = proofText,
+                    aiFeedback = verification.feedbackMessage,
                     bonusXp = verification.bonusXp,
                     currentProfile = userProfile.value
                 )
@@ -444,6 +472,179 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
     fun rewardResistingDistraction(appName: String) {
         viewModelScope.launch {
             repository.rewardResistingDistraction(appName, userProfile.value)
+        }
+    }
+
+    // Flashcards / Tarjetas de Repaso
+    fun addFlashcard(subject: String, question: String, answer: String, hint: String = "", lessonId: Int? = null) {
+        viewModelScope.launch {
+            repository.addFlashcard(
+                FlashcardEntity(
+                    lessonId = lessonId,
+                    subject = subject.ifBlank { "General" },
+                    question = question,
+                    answer = answer,
+                    hint = hint
+                )
+            )
+        }
+    }
+
+    fun generateFlashcardsForLesson(lesson: LessonEntity) {
+        viewModelScope.launch {
+            _isGeneratingFlashcards.value = true
+            try {
+                val generated = geminiService.generateFlashcardsWithAi(
+                    subject = lesson.subject,
+                    topic = lesson.title,
+                    content = lesson.content,
+                    userProfile = userProfile.value
+                )
+                val entities = generated.map {
+                    FlashcardEntity(
+                        lessonId = lesson.id,
+                        subject = lesson.subject,
+                        question = it.question,
+                        answer = it.answer,
+                        hint = it.hint
+                    )
+                }
+                repository.addFlashcards(entities)
+            } finally {
+                _isGeneratingFlashcards.value = false
+            }
+        }
+    }
+
+    fun generateFlashcardsForTopic(subject: String, topic: String) {
+        viewModelScope.launch {
+            _isGeneratingFlashcards.value = true
+            try {
+                val generated = geminiService.generateFlashcardsWithAi(
+                    subject = subject,
+                    topic = topic,
+                    userProfile = userProfile.value
+                )
+                val entities = generated.map {
+                    FlashcardEntity(
+                        subject = subject,
+                        question = it.question,
+                        answer = it.answer,
+                        hint = it.hint
+                    )
+                }
+                repository.addFlashcards(entities)
+            } finally {
+                _isGeneratingFlashcards.value = false
+            }
+        }
+    }
+
+    fun recordFlashcardStudy(flashcard: FlashcardEntity, isMastered: Boolean) {
+        viewModelScope.launch {
+            repository.recordFlashcardStudy(flashcard, isMastered, userProfile.value)
+        }
+    }
+
+    fun deleteFlashcard(id: Int) {
+        viewModelScope.launch {
+            repository.deleteFlashcard(id)
+        }
+    }
+
+    // Exámenes y Evaluaciones
+    fun addExam(
+        subject: String,
+        title: String,
+        examDate: String,
+        examTime: String = "08:00 AM",
+        room: String = "",
+        notes: String = ""
+    ) {
+        viewModelScope.launch {
+            repository.addExam(
+                ExamEntity(
+                    subject = subject,
+                    title = title,
+                    examDate = examDate,
+                    examTime = examTime,
+                    room = room,
+                    notes = notes
+                )
+            )
+        }
+    }
+
+    fun toggleExamCompleted(exam: ExamEntity) {
+        viewModelScope.launch {
+            repository.updateExam(exam.copy(isCompleted = !exam.isCompleted))
+        }
+    }
+
+    fun updateExam(exam: ExamEntity) {
+        viewModelScope.launch {
+            repository.updateExam(exam)
+        }
+    }
+
+    fun deleteExam(id: Int) {
+        viewModelScope.launch {
+            repository.deleteExam(id)
+        }
+    }
+
+    // Tienda de Lupo & Atuendos
+    fun buyAndEquipOutfit(outfitId: String, cost: Int) {
+        val current = userProfile.value ?: return
+        viewModelScope.launch {
+            repository.buyAndEquipOutfit(outfitId, cost, current)
+        }
+    }
+
+    fun equipOutfit(outfitId: String) {
+        val current = userProfile.value ?: return
+        viewModelScope.launch {
+            repository.equipOutfit(outfitId, current)
+        }
+    }
+
+    // Simulacros / Quizzes
+    suspend fun getQuizForLesson(lesson: LessonEntity): List<com.example.lupoaide.data.remote.QuizQuestion> {
+        _isGeneratingQuiz.value = true
+        return try {
+            geminiService.generateQuizWithAi(
+                subject = lesson.subject,
+                topic = lesson.title,
+                content = lesson.content,
+                userProfile = userProfile.value
+            )
+        } finally {
+            _isGeneratingQuiz.value = false
+        }
+    }
+
+    suspend fun getQuizForTopic(subject: String, topic: String): List<com.example.lupoaide.data.remote.QuizQuestion> {
+        return getQuizForSubjectAndTopic(subject, topic)
+    }
+
+    suspend fun getQuizForSubjectAndTopic(subject: String, topic: String): List<com.example.lupoaide.data.remote.QuizQuestion> {
+        _isGeneratingQuiz.value = true
+        return try {
+            geminiService.generateQuizWithAi(
+                subject = subject,
+                topic = topic,
+                userProfile = userProfile.value
+            )
+        } finally {
+            _isGeneratingQuiz.value = false
+        }
+    }
+
+    fun recordQuizCompleted(correctCount: Int, totalCount: Int, subject: String) {
+        viewModelScope.launch {
+            val earnedXp = (correctCount * 15) + 10 // Base 10 XP + 15 XP por respuesta correcta
+            val earnedCoins = (correctCount * 5) + 5
+            repository.recordQuizResult(earnedXp, earnedCoins, userProfile.value)
         }
     }
 

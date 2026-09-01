@@ -12,10 +12,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.example.lupoaide.data.remote.QuizQuestion
 import com.example.lupoaide.ui.components.*
 import com.example.lupoaide.ui.screens.*
 import com.example.lupoaide.ui.theme.LupoAideTheme
 import com.example.lupoaide.ui.viewmodel.LupoViewModel
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -34,6 +37,9 @@ class MainActivity : ComponentActivity() {
                 val backpackMaterials by viewModel.backpackMaterials.collectAsStateWithLifecycle()
                 val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
                 val blockedApps by viewModel.blockedApps.collectAsStateWithLifecycle()
+                val flashcards by viewModel.flashcards.collectAsStateWithLifecycle()
+                val exams by viewModel.exams.collectAsStateWithLifecycle()
+                val upcomingExams by viewModel.upcomingExams.collectAsStateWithLifecycle()
 
                 val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle()
                 val isThinking by viewModel.isLupoThinking.collectAsStateWithLifecycle()
@@ -42,6 +48,15 @@ class MainActivity : ComponentActivity() {
                 var currentScreen by remember { mutableStateOf(LupoScreen.HOME) }
                 var showChatModal by remember { mutableStateOf(false) }
                 var showBackpackModal by remember { mutableStateOf(false) }
+                var showFlashcardsModal by remember { mutableStateOf(false) }
+                var showExamsModal by remember { mutableStateOf(false) }
+                var showShopModal by remember { mutableStateOf(false) }
+
+                var activeQuizSubject by remember { mutableStateOf<String?>(null) }
+                var activeQuizTopic by remember { mutableStateOf<String?>(null) }
+                var activeQuizQuestions by remember { mutableStateOf<List<QuizQuestion>>(emptyList()) }
+                var isQuizLoading by remember { mutableStateOf(false) }
+                val coroutineScope = rememberCoroutineScope()
 
                 // Si es la primera vez (onboarding no completado), mostrar pantalla de configuración inicial
                 if (profile != null && !profile!!.isOnboardingCompleted) {
@@ -62,7 +77,8 @@ class MainActivity : ComponentActivity() {
                             GamificationTopBar(
                                 profile = profile,
                                 currentDateFormatted = viewModel.currentDateFormatted,
-                                onLupoClick = { showChatModal = true }
+                                onLupoClick = { showChatModal = true },
+                                onOpenShop = { showShopModal = true }
                             )
                         },
                         bottomBar = {
@@ -81,6 +97,8 @@ class MainActivity : ComponentActivity() {
                                 LupoScreen.HOME -> HomeScreen(
                                     profile = profile,
                                     tasks = tasks,
+                                    upcomingExams = upcomingExams,
+                                    flashcards = flashcards,
                                     tomorrowDay = viewModel.tomorrowSpanishDay,
                                     onToggleTask = { viewModel.toggleTaskCompletion(it) },
                                     onVerifyTask = { task, proof ->
@@ -90,7 +108,10 @@ class MainActivity : ComponentActivity() {
                                         viewModel.addTask(title, desc, sub, xp, coins, due, priority)
                                     },
                                     onOpenLupoChat = { showChatModal = true },
-                                    onOpenBackpack = { showBackpackModal = true }
+                                    onOpenBackpack = { showBackpackModal = true },
+                                    onOpenExams = { showExamsModal = true },
+                                    onOpenFlashcards = { showFlashcardsModal = true },
+                                    onOpenShop = { showShopModal = true }
                                 )
                                 LupoScreen.TIMETABLE -> TimetableScreen(
                                     slots = slots,
@@ -136,7 +157,22 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onCompleteStudySession = { lessonId, minutes ->
                                         viewModel.recordCompletedStudySession(lessonId, minutes)
-                                    }
+                                    },
+                                    onGenerateFlashcardsForLesson = { lesson ->
+                                        viewModel.generateFlashcardsForLesson(lesson)
+                                        showFlashcardsModal = true
+                                    },
+                                    onStartQuizForLesson = { lesson ->
+                                        activeQuizSubject = lesson.subject
+                                        activeQuizTopic = lesson.title
+                                        isQuizLoading = true
+                                        coroutineScope.launch {
+                                            val questions = viewModel.getQuizForLesson(lesson)
+                                            activeQuizQuestions = questions
+                                            isQuizLoading = false
+                                        }
+                                    },
+                                    onOpenAllFlashcards = { showFlashcardsModal = true }
                                 )
                                 LupoScreen.PROFILE -> ProfileScreen(
                                     profile = profile,
@@ -148,7 +184,8 @@ class MainActivity : ComponentActivity() {
                                     onAddBlockedApp = { pkg, name, cat, goal, initMin, targetMin, days, mot ->
                                         viewModel.addBlockedApp(pkg, name, cat, goal, initMin, targetMin, days, mot)
                                     },
-                                    onOpenBackpack = { showBackpackModal = true }
+                                    onOpenBackpack = { showBackpackModal = true },
+                                    onOpenShop = { showShopModal = true }
                                 )
                             }
 
@@ -175,6 +212,86 @@ class MainActivity : ComponentActivity() {
                                     onDismiss = { showBackpackModal = false }
                                 )
                             }
+
+                            if (showFlashcardsModal) {
+                                FlashcardsModal(
+                                    flashcards = flashcards,
+                                    lessons = lessons,
+                                    isGeneratingWithAi = isGeneratingLesson,
+                                    onAddFlashcard = { sub, q, a, hint, lId ->
+                                        viewModel.addFlashcard(sub, q, a, hint, lId)
+                                    },
+                                    onGenerateWithAi = { sub, topic ->
+                                        viewModel.generateFlashcardsForTopic(sub, topic)
+                                    },
+                                    onStudyFlashcard = { card, mastered ->
+                                        viewModel.recordFlashcardStudy(card, mastered)
+                                    },
+                                    onDeleteFlashcard = { viewModel.deleteFlashcard(it) },
+                                    onDismiss = { showFlashcardsModal = false }
+                                )
+                            }
+
+                            if (showExamsModal) {
+                                ExamsModal(
+                                    exams = exams,
+                                    onAddExam = { sub, title, date, time, room, notes ->
+                                        viewModel.addExam(sub, title, date, time, room, notes)
+                                    },
+                                    onToggleExamCompleted = { viewModel.toggleExamCompleted(it) },
+                                    onDeleteExam = { viewModel.deleteExam(it) },
+                                    onPrepareWithAi = { sub, title ->
+                                        viewModel.sendMessageToLupo(
+                                            messageText = "Ayúdame a crear un plan de repaso intensivo y tips de estudio para mi examen de '$title' en $sub.",
+                                            subjectContext = sub
+                                        )
+                                        showExamsModal = false
+                                        showChatModal = true
+                                    },
+                                    onStartExamQuiz = { sub, title ->
+                                        activeQuizSubject = sub
+                                        activeQuizTopic = title
+                                        isQuizLoading = true
+                                        coroutineScope.launch {
+                                            val questions = viewModel.getQuizForTopic(sub, title)
+                                            activeQuizQuestions = questions
+                                            isQuizLoading = false
+                                        }
+                                    },
+                                    onDismiss = { showExamsModal = false }
+                                )
+                            }
+
+                            if (activeQuizSubject != null && activeQuizTopic != null) {
+                                QuizExamModal(
+                                    subject = activeQuizSubject!!,
+                                    topic = activeQuizTopic!!,
+                                    questions = activeQuizQuestions,
+                                    isLoading = isQuizLoading,
+                                    onCompleteQuiz = { score, total, subject ->
+                                        viewModel.recordQuizCompleted(score, total, subject)
+                                    },
+                                    onDismiss = {
+                                        activeQuizSubject = null
+                                        activeQuizTopic = null
+                                        activeQuizQuestions = emptyList()
+                                        isQuizLoading = false
+                                    }
+                                )
+                            }
+
+                            if (showShopModal) {
+                                LupoShopModal(
+                                    profile = profile,
+                                    onBuyAndEquip = { outfitId, cost ->
+                                        viewModel.buyAndEquipOutfit(outfitId, cost)
+                                    },
+                                    onEquip = { outfitId ->
+                                        viewModel.equipOutfit(outfitId)
+                                    },
+                                    onDismiss = { showShopModal = false }
+                                )
+                            }
                         }
                     }
                 }
@@ -182,3 +299,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+

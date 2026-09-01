@@ -12,8 +12,12 @@ class LupoRepository(private val dao: LupoDao) {
     val userProfile: Flow<UserProfileEntity?> = dao.getUserProfile()
     val allBlockedApps: Flow<List<BlockedAppEntity>> = dao.getAllBlockedApps()
     val activeBlockedApps: Flow<List<BlockedAppEntity>> = dao.getActiveBlockedApps()
+    val allFlashcards: Flow<List<FlashcardEntity>> = dao.getAllFlashcards()
+    val allExams: Flow<List<ExamEntity>> = dao.getAllExams()
+    val upcomingExams: Flow<List<ExamEntity>> = dao.getUpcomingExams()
 
     fun getSlotsForDay(day: String): Flow<List<TimetableSlotEntity>> = dao.getSlotsByDay(day)
+    fun getFlashcardsForLesson(lessonId: Int): Flow<List<FlashcardEntity>> = dao.getFlashcardsByLesson(lessonId)
 
     // Tareas con validación estricta de EXP y Recompensas (sin bugs de duplicación)
     suspend fun addTask(task: TaskEntity) = dao.insertTask(task)
@@ -23,6 +27,7 @@ class LupoRepository(private val dao: LupoDao) {
     suspend fun verifyAndCompleteTask(
         task: TaskEntity,
         proofText: String,
+        aiFeedback: String,
         bonusXp: Int,
         currentProfile: UserProfileEntity?
     ) {
@@ -31,7 +36,8 @@ class LupoRepository(private val dao: LupoDao) {
             isCompleted = true,
             rewardClaimed = true,
             isVerified = true,
-            verificationProof = proofText
+            verificationProof = proofText,
+            aiFeedback = aiFeedback
         )
         dao.updateTask(updatedTask)
 
@@ -126,6 +132,56 @@ class LupoRepository(private val dao: LupoDao) {
                 earnedXp = 10,
                 earnedCoins = 5
             )
+        }
+    }
+
+    // Flashcards / Tarjetas de Repaso
+    suspend fun addFlashcard(flashcard: FlashcardEntity) = dao.insertFlashcard(flashcard)
+    suspend fun addFlashcards(flashcards: List<FlashcardEntity>) = dao.insertFlashcards(flashcards)
+    suspend fun updateFlashcard(flashcard: FlashcardEntity) = dao.updateFlashcard(flashcard)
+    suspend fun deleteFlashcard(id: Int) = dao.deleteFlashcard(id)
+
+    suspend fun recordFlashcardStudy(flashcard: FlashcardEntity, isMastered: Boolean, currentProfile: UserProfileEntity?) {
+        val updated = flashcard.copy(
+            reviewCount = flashcard.reviewCount + 1,
+            isMastered = isMastered,
+            lastReviewed = System.currentTimeMillis()
+        )
+        dao.updateFlashcard(updated)
+
+        if (currentProfile != null && isMastered) {
+            awardExperienceAndCoins(currentProfile, earnedXp = 8, earnedCoins = 3)
+        }
+    }
+
+    // Exámenes y Evaluaciones
+    suspend fun addExam(exam: ExamEntity) = dao.insertExam(exam)
+    suspend fun updateExam(exam: ExamEntity) = dao.updateExam(exam)
+    suspend fun deleteExam(id: Int) = dao.deleteExam(id)
+
+    // Tienda de Lupo & Atuendos
+    suspend fun buyAndEquipOutfit(outfitId: String, cost: Int, currentProfile: UserProfileEntity) {
+        if (currentProfile.coins >= cost) {
+            val currentUnlocked = currentProfile.unlockedOutfits.split(",").map { it.trim() }.toMutableSet()
+            currentUnlocked.add(outfitId)
+            val updated = currentProfile.copy(
+                coins = currentProfile.coins - cost,
+                activeOutfitId = outfitId,
+                unlockedOutfits = currentUnlocked.joinToString(",")
+            )
+            dao.saveUserProfile(updated)
+        }
+    }
+
+    suspend fun equipOutfit(outfitId: String, currentProfile: UserProfileEntity) {
+        val updated = currentProfile.copy(activeOutfitId = outfitId)
+        dao.saveUserProfile(updated)
+    }
+
+    // Simulacros / Quizzes de Examen
+    suspend fun recordQuizResult(earnedXp: Int, earnedCoins: Int, currentProfile: UserProfileEntity?) {
+        if (currentProfile != null && (earnedXp > 0 || earnedCoins > 0)) {
+            awardExperienceAndCoins(currentProfile, earnedXp, earnedCoins)
         }
     }
 
