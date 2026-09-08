@@ -15,6 +15,7 @@ class LupoRepository(private val dao: LupoDao) {
     val allFlashcards: Flow<List<FlashcardEntity>> = dao.getAllFlashcards()
     val allExams: Flow<List<ExamEntity>> = dao.getAllExams()
     val upcomingExams: Flow<List<ExamEntity>> = dao.getUpcomingExams()
+    val allCourses: Flow<List<CourseEntity>> = dao.getAllCourses()
 
     fun getSlotsForDay(day: String): Flow<List<TimetableSlotEntity>> = dao.getSlotsByDay(day)
     fun getFlashcardsForLesson(lessonId: Int): Flow<List<FlashcardEntity>> = dao.getFlashcardsByLesson(lessonId)
@@ -182,6 +183,23 @@ class LupoRepository(private val dao: LupoDao) {
     suspend fun recordQuizResult(earnedXp: Int, earnedCoins: Int, currentProfile: UserProfileEntity?) {
         if (currentProfile != null && (earnedXp > 0 || earnedCoins > 0)) {
             awardExperienceAndCoins(currentProfile, earnedXp, earnedCoins)
+        }
+    }
+
+    // Cursos Personalizados
+    suspend fun addCourse(course: CourseEntity) = dao.insertCourse(course)
+    suspend fun updateCourse(course: CourseEntity) = dao.updateCourse(course)
+    suspend fun deleteCourse(id: Int) = dao.deleteCourse(id)
+
+    suspend fun completeCourseLesson(course: CourseEntity, currentProfile: UserProfileEntity?) {
+        val newCompleted = (course.completedLessons + 1).coerceAtMost(course.totalLessons)
+        val updated = course.copy(completedLessons = newCompleted)
+        dao.updateCourse(updated)
+
+        if (currentProfile != null) {
+            val xpGain = 25
+            val coinGain = 10
+            awardExperienceAndCoins(currentProfile, xpGain, coinGain)
         }
     }
 

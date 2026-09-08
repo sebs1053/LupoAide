@@ -29,6 +29,14 @@ import com.example.lupoaide.data.service.BlockerPermissionHelper
 fun ProfileScreen(
     profile: UserProfileEntity?,
     blockedApps: List<BlockedAppEntity> = emptyList(),
+    isAiConnected: Boolean = true,
+    aiTestResult: String? = null,
+    isTestingAi: Boolean = false,
+    onTestAiConnection: () -> Unit = {},
+    onClearAiTestResult: () -> Unit = {},
+    onSaveApiKey: (String) -> Unit = {},
+    onUpdateNotificationPreferences: (notifications: Boolean, exams: Boolean, backpack: Boolean) -> Unit = { _, _, _ -> },
+    onSendTestNotification: () -> Boolean = { true },
     onUpdateProfile: (UserProfileEntity) -> Unit,
     onToggleAppBlocked: (BlockedAppEntity) -> Unit = {},
     onUpdateBlockedApp: (BlockedAppEntity) -> Unit = {},
@@ -51,7 +59,19 @@ fun ProfileScreen(
     var showAddBlockAppDialog by remember { mutableStateOf(false) }
     var editingBlockedApp by remember { mutableStateOf<BlockedAppEntity?>(null) }
 
-    val isPermissionGranted = remember { BlockerPermissionHelper.isAccessibilityServiceEnabled(context) }
+    // Estado de la clave API
+    var apiKeyInput by remember(profile?.customApiKey) { mutableStateOf(profile?.customApiKey ?: "") }
+    var isApiKeySavedMessageVisible by remember { mutableStateOf(false) }
+
+    // Estados de permisos de bloqueo
+    var hasUsageStats by remember { mutableStateOf(BlockerPermissionHelper.hasUsageStatsPermission(context)) }
+    val isAccessibilityGranted = remember { BlockerPermissionHelper.isAccessibilityServiceEnabled(context) }
+
+    // Notificaciones
+    var notificationsEnabled by remember(profile?.notificationsEnabled) { mutableStateOf(profile?.notificationsEnabled ?: true) }
+    var examReminders by remember(profile?.examRemindersEnabled) { mutableStateOf(profile?.examRemindersEnabled ?: true) }
+    var backpackReminders by remember(profile?.backpackRemindersEnabled) { mutableStateOf(profile?.backpackRemindersEnabled ?: true) }
+    var testNotificationSentMsg by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier
@@ -195,38 +215,70 @@ fun ProfileScreen(
             }
         }
 
-        // Estado del plan y protección
+        // Estado del plan y protección sin alertas de privacidad
         item {
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    containerColor = if (hasUsageStats) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        Icons.Default.VerifiedUser,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (hasUsageStats) Icons.Default.VerifiedUser else Icons.Default.Shield,
+                            contentDescription = null,
+                            tint = if (hasUsageStats) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Modo de Bloqueo Sin Alerta de Privacidad",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (hasUsageStats) "✅ Permiso de Bienestar Digital Oficial Activo"
+                                else "⚠️ Requiere Permiso Estándar de Acceso a Uso",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (hasUsageStats) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Para evitar que Android muestre la alerta roja invasiva de 'Accesibilidad' al instalar la app, Lupo utiliza el estándar oficial 'Acceso a Datos de Uso' (Digital Wellbeing). Este método es 100% seguro, respeta tu privacidad y no lee tus contraseñas ni pantalla.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Control Gradual de Enfoque Activo",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Lupo calcula tus límites y registra tu constancia para vencer las distracciones.",
-                            style = MaterialTheme.typography.bodySmall
-                        )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilledTonalButton(
+                            onClick = {
+                                BlockerPermissionHelper.openUsageStatsSettings(context)
+                                hasUsageStats = BlockerPermissionHelper.hasUsageStatsPermission(context)
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (hasUsageStats) "Ajustes de Uso (Configurado)" else "Activar Acceso de Uso Seguro", fontSize = 12.sp)
+                        }
                     }
                 }
             }
@@ -510,6 +562,263 @@ fun ProfileScreen(
                         Icon(Icons.Default.ShoppingBag, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Tienda")
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // CONFIGURACIÓN DE INTELIGENCIA ARTIFICIAL (GEMINI 3.5 FLASH)
+        // =========================================================================
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.SmartToy,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Inteligencia Artificial (Lupo IA)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isAiConnected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+                        ) {
+                            Text(
+                                text = if (isAiConnected) "Conectado" else "Sin Clave",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isAiConnected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Lupo utiliza modelos Gemini de Google (con fallback automático a Gemini 3.5 Flash, Gemini Flash Latest y Gemini 2.5 Flash) para generar cursos, explicaciones, cuestionarios y flashcards.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Campo para ingresar API Key personalizada si lo desea
+                    OutlinedTextField(
+                        value = apiKeyInput,
+                        onValueChange = {
+                            apiKeyInput = it
+                            isApiKeySavedMessageVisible = false
+                        },
+                        label = { Text("Clave API de Google AI Studio (Opcional)") },
+                        placeholder = { Text("AIzaSy...") },
+                        singleLine = true,
+                        trailingIcon = {
+                            if (apiKeyInput.isNotBlank()) {
+                                IconButton(onClick = { apiKeyInput = "" }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Borrar clave")
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                onSaveApiKey(apiKeyInput)
+                                isApiKeySavedMessageVisible = true
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Guardar Clave")
+                        }
+
+                        FilledTonalButton(
+                            onClick = onTestAiConnection,
+                            enabled = !isTestingAi,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isTestingAi) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Probar IA")
+                            }
+                        }
+                    }
+
+                    if (isApiKeySavedMessageVisible) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "✅ Clave API guardada en tu perfil local.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+
+                    // Resultado de la prueba de conexión
+                    if (aiTestResult != null) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (aiTestResult.startsWith("✅")) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                            else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = aiTestResult,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(onClick = onClearAiTestResult, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // NOTIFICACIONES Y RECORDATORIOS
+        // =========================================================================
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.NotificationsActive,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Notificaciones y Recordatorios",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Text(
+                        text = "Recibe avisos antes de exámenes importantes y alertas de mochila la noche anterior para no olvidar cuadernos.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Recordatorios de Exámenes", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text(text = "Avisos 24h y 2h antes de cada prueba", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = examReminders,
+                            onCheckedChange = {
+                                examReminders = it
+                                onUpdateNotificationPreferences(notificationsEnabled, examReminders, backpackReminders)
+                            }
+                        )
+                    }
+
+                    Divider()
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Alerta de Mochila Nocturna", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text(text = "Recordatorio a las 20:00 para preparar materiales de mañana", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = backpackReminders,
+                            onCheckedChange = {
+                                backpackReminders = it
+                                onUpdateNotificationPreferences(notificationsEnabled, examReminders, backpackReminders)
+                            }
+                        )
+                    }
+
+                    FilledTonalButton(
+                        onClick = {
+                            val sent = onSendTestNotification()
+                            testNotificationSentMsg = if (sent) "✅ Notificación de prueba enviada al sistema." else "⚠️ Permiso de notificaciones deshabilitado en el sistema."
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Enviar Notificación de Prueba Ahora")
+                    }
+
+                    if (testNotificationSentMsg != null) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = testNotificationSentMsg!!,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
                     }
                 }
             }

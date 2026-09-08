@@ -127,4 +127,20 @@ interface LupoDao {
 
     @Query("DELETE FROM exams WHERE id = :id")
     suspend fun deleteExam(id: Int)
+
+    // Cursos Personalizados
+    @Query("SELECT * FROM courses ORDER BY timestamp DESC")
+    fun getAllCourses(): Flow<List<CourseEntity>>
+
+    @Query("SELECT * FROM courses WHERE id = :id LIMIT 1")
+    suspend fun getCourseById(id: Int): CourseEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCourse(course: CourseEntity)
+
+    @Update
+    suspend fun updateCourse(course: CourseEntity)
+
+    @Query("DELETE FROM courses WHERE id = :id")
+    suspend fun deleteCourse(id: Int)
 }

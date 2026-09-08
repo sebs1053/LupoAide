@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.lupoaide.data.local.*
 import com.example.lupoaide.data.remote.GeminiStudyService
 import com.example.lupoaide.data.repository.LupoRepository
+import com.example.lupoaide.data.service.LupoNotificationHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -34,6 +37,7 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
     val flashcards: StateFlow<List<FlashcardEntity>>
     val exams: StateFlow<List<ExamEntity>>
     val upcomingExams: StateFlow<List<ExamEntity>>
+    val courses: StateFlow<List<CourseEntity>>
 
     // Fecha y día real actual del sistema
     private val todaySpanishDay = getTodayDayOfWeekSpanish()
@@ -76,7 +80,16 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
     private val _isGeneratingQuiz = MutableStateFlow(false)
     val isGeneratingQuiz: StateFlow<Boolean> = _isGeneratingQuiz.asStateFlow()
 
-    fun isAiConnected(): Boolean = geminiService.isAiConfigured()
+    private val _isGeneratingCourse = MutableStateFlow(false)
+    val isGeneratingCourse: StateFlow<Boolean> = _isGeneratingCourse.asStateFlow()
+
+    private val _aiTestResult = MutableStateFlow<String?>(null)
+    val aiTestResult: StateFlow<String?> = _aiTestResult.asStateFlow()
+
+    private val _isTestingAi = MutableStateFlow(false)
+    val isTestingAi: StateFlow<Boolean> = _isTestingAi.asStateFlow()
+
+    fun isAiConnected(): Boolean = geminiService.isAiConfigured(userProfile.value?.customApiKey)
 
     init {
         val database = LupoDatabase.getDatabase(application)
@@ -137,6 +150,12 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         upcomingExams = repository.upcomingExams.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+        courses = repository.allCourses.stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
             emptyList()
@@ -410,14 +429,137 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
         _isLupoThinking.value = true
 
         viewModelScope.launch {
-            val response = geminiService.askLupo(
-                userQuery = messageText,
-                subjectContext = subjectContext,
-                userProfile = userProfile.value
+            try {
+                val response = geminiService.askLupo(
+                    userQuery = messageText,
+                    subjectContext = subjectContext,
+                    userProfile = userProfile.value
+                )
+                val lupoMsg = ChatMessage(sender = "Lupo", message = response)
+                _chatMessages.update { it + lupoMsg }
+            } catch (e: Exception) {
+                val err = "⚠️ No pude procesar tu mensaje: ${e.localizedMessage ?: "Error de red"}. Intenta de nuevo."
+                _chatMessages.update { it + ChatMessage(sender = "Lupo", message = err) }
+            } finally {
+                _isLupoThinking.value = false
+            }
+        }
+    }
+
+    // Diagnóstico y Clave de IA
+    fun testAiConnection() {
+        viewModelScope.launch {
+            _isTestingAi.value = true
+            _aiTestResult.value = null
+            try {
+                val (_, message) = geminiService.testAiConnection(userProfile.value?.customApiKey)
+                _aiTestResult.value = message
+            } catch (e: Exception) {
+                _aiTestResult.value = "Error al probar conexión: ${e.localizedMessage ?: e.message}"
+            } finally {
+                _isTestingAi.value = false
+            }
+        }
+    }
+
+    fun clearAiTestResult() {
+        _aiTestResult.value = null
+    }
+
+    fun updateCustomApiKey(apiKey: String) {
+        viewModelScope.launch {
+            val current = userProfile.value ?: return@launch
+            repository.updateProfile(current.copy(customApiKey = apiKey.trim()))
+        }
+    }
+
+    // Preferencias de Notificaciones
+    fun updateNotificationPreferences(
+        notificationsEnabled: Boolean,
+        examRemindersEnabled: Boolean,
+        backpackRemindersEnabled: Boolean
+    ) {
+        viewModelScope.launch {
+            val current = userProfile.value ?: return@launch
+            repository.updateProfile(
+                current.copy(
+                    notificationsEnabled = notificationsEnabled,
+                    examRemindersEnabled = examRemindersEnabled,
+                    backpackRemindersEnabled = backpackRemindersEnabled
+                )
             )
-            val lupoMsg = ChatMessage(sender = "Lupo", message = response)
-            _chatMessages.update { it + lupoMsg }
-            _isLupoThinking.value = false
+        }
+    }
+
+    fun sendTestNotification(): Boolean {
+        return LupoNotificationHelper.sendInstantTestNotification(getApplication())
+    }
+
+    // Cursos Personalizados
+    fun addCourse(
+        title: String,
+        subject: String,
+        description: String,
+        level: String,
+        estimatedHours: Int,
+        modules: List<CourseModuleItem>,
+        colorHex: String = "#6366F1"
+    ) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(modules)
+            val course = CourseEntity(
+                title = title,
+                subject = subject,
+                description = description,
+                level = level,
+                estimatedHours = estimatedHours,
+                totalLessons = modules.size,
+                completedLessons = 0,
+                isCustom = true,
+                createdWithAi = false,
+                syllabusJson = json,
+                colorHex = colorHex
+            )
+            repository.addCourse(course)
+        }
+    }
+
+    fun generateCourseWithAi(
+        subject: String,
+        goal: String,
+        level: String,
+        weeks: Int,
+        onFinished: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _isGeneratingCourse.value = true
+            try {
+                val course = geminiService.generateCourseWithAi(
+                    subject = subject,
+                    goal = goal,
+                    level = level,
+                    weeks = weeks,
+                    userProfile = userProfile.value
+                )
+                repository.addCourse(course)
+                onFinished(true, "¡Curso de ${course.subject} generado con éxito!")
+            } catch (e: Exception) {
+                onFinished(false, "Error al generar curso: ${e.localizedMessage ?: "Error desconocido"}")
+            } finally {
+                _isGeneratingCourse.value = false
+            }
+        }
+    }
+
+    fun completeCourseLesson(course: CourseEntity) {
+        viewModelScope.launch {
+            repository.completeCourseLesson(course, userProfile.value)
+        }
+    }
+
+    fun deleteCourse(courseId: Int) {
+        viewModelScope.launch {
+            repository.deleteCourse(courseId)
         }
     }
 

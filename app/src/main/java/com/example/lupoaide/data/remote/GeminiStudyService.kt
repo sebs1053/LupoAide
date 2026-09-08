@@ -1,10 +1,14 @@
 package com.example.lupoaide.data.remote
 
 import com.example.lupoaide.BuildConfig
+import com.example.lupoaide.data.local.CourseEntity
+import com.example.lupoaide.data.local.CourseModuleItem
 import com.example.lupoaide.data.local.UserProfileEntity
 import com.google.ai.client.generativeai.GenerativeModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 data class GeneratedLessonResult(
     val title: String,
@@ -38,18 +42,22 @@ data class TaskVerificationResult(
 
 class GeminiStudyService {
 
-    fun isAiConfigured(): Boolean {
+    fun getEffectiveApiKey(customApiKey: String? = null): String {
+        return customApiKey?.trim()?.takeIf { it.isNotBlank() } ?: BuildConfig.GEMINI_API_KEY
+    }
+
+    fun isAiConfigured(customApiKey: String? = null): Boolean {
         return try {
-            val apiKey = BuildConfig.GEMINI_API_KEY
+            val apiKey = getEffectiveApiKey(customApiKey)
             apiKey.isNotBlank() && apiKey != "dummy_key_for_build" && !apiKey.contains("YOUR_API_KEY")
         } catch (e: Exception) {
             false
         }
     }
 
-    private fun getGenerativeModel(modelName: String = "gemini-2.5-flash"): GenerativeModel? {
+    private fun getGenerativeModel(modelName: String = "gemini-3.5-flash", customApiKey: String? = null): GenerativeModel? {
         return try {
-            val apiKey = BuildConfig.GEMINI_API_KEY
+            val apiKey = getEffectiveApiKey(customApiKey)
             if (apiKey.isNotBlank() && apiKey != "dummy_key_for_build" && !apiKey.contains("YOUR_API_KEY")) {
                 GenerativeModel(
                     modelName = modelName,
@@ -63,21 +71,59 @@ class GeminiStudyService {
         }
     }
 
-    private suspend fun executeWithModelFallback(prompt: String): String? {
-        val models = listOf("gemini-2.5-flash", "gemini-3.5-flash", "gemini-flash-latest")
+    suspend fun testAiConnection(customApiKey: String? = null): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        val apiKey = getEffectiveApiKey(customApiKey)
+        if (apiKey.isBlank() || apiKey == "dummy_key_for_build" || apiKey.contains("YOUR_API_KEY")) {
+            return@withContext Pair(
+                false,
+                "No hay una API Key de Gemini configurada. Ingresa tu clave en tu Perfil ⚙️ o agrégala en Secrets."
+            )
+        }
+
+        val models = listOf("gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite-preview", "gemini-2.5-flash")
+        var lastError = ""
+
         for (modelName in models) {
             try {
-                val model = getGenerativeModel(modelName) ?: return null
+                val model = GenerativeModel(modelName = modelName, apiKey = apiKey)
+                val response = model.generateContent("Hola Lupo, responde exactamente: ¡Conexión exitosa con Gemini!")
+                val text = response.text
+                if (!text.isNullOrBlank()) {
+                    return@withContext Pair(true, "¡Conexión exitosa con $modelName!\n\nLupo IA está activo y listo.")
+                }
+            } catch (e: Exception) {
+                lastError = e.localizedMessage ?: e.message ?: "Error desconocido"
+            }
+        }
+
+        Pair(false, "No se pudo comunicar con Gemini. Causa: $lastError\n\nVerifica tu conexión a internet o tu clave de API.")
+    }
+
+    private suspend fun executeWithModelFallback(
+        prompt: String,
+        customApiKey: String? = null
+    ): Pair<String?, String?> {
+        val apiKey = getEffectiveApiKey(customApiKey)
+        if (apiKey.isBlank() || apiKey == "dummy_key_for_build" || apiKey.contains("YOUR_API_KEY")) {
+            return Pair(null, "API Key no configurada")
+        }
+
+        val models = listOf("gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite-preview", "gemini-2.5-flash")
+        var lastError: String? = null
+
+        for (modelName in models) {
+            try {
+                val model = getGenerativeModel(modelName, customApiKey) ?: continue
                 val response = model.generateContent(prompt)
                 val text = response.text
                 if (!text.isNullOrBlank()) {
-                    return text.trim()
+                    return Pair(text.trim(), null)
                 }
             } catch (e: Exception) {
-                // Continue to next model fallback
+                lastError = e.localizedMessage ?: e.message ?: "Error desconocido"
             }
         }
-        return null
+        return Pair(null, lastError)
     }
 
     suspend fun askLupo(
@@ -90,6 +136,7 @@ class GeminiStudyService {
         val educationLevel = userProfile?.educationLevel ?: "Preparatoria / Universidad"
         val grade = userProfile?.grade ?: ""
         val country = userProfile?.country ?: "Latinoamérica"
+        val customKey = userProfile?.customApiKey
 
         val systemPrompt = """
             Eres Lupo, un lobito tutor de estudio inteligente, empático y motivador con Inteligencia Artificial.
@@ -108,15 +155,16 @@ class GeminiStudyService {
             "$userQuery"
         """.trimIndent()
 
-        try {
-            val responseText = executeWithModelFallback(systemPrompt)
-            if (!responseText.isNullOrBlank()) {
-                responseText
+        val (responseText, error) = executeWithModelFallback(systemPrompt, customKey)
+        if (!responseText.isNullOrBlank()) {
+            responseText
+        } else {
+            val offlineResponse = getRichOfflineLupoResponse(userQuery, studentName, subjectContext)
+            if (error == "API Key no configurada") {
+                "$offlineResponse\n\n*(💡 Nota: Respuestas en modo tutor local. Para activar IA en tiempo real con Gemini 3.5 Flash, ingresa tu API Key en tu Perfil ⚙️)*"
             } else {
-                getRichOfflineLupoResponse(userQuery, studentName, subjectContext)
+                "*(⚠️ Nota de conexión: $error. Mostrando respuesta de respaldo:)*\n\n$offlineResponse"
             }
-        } catch (e: Exception) {
-            getRichOfflineLupoResponse(userQuery, studentName, subjectContext)
         }
     }
 
@@ -153,7 +201,7 @@ class GeminiStudyService {
         """.trimIndent()
 
         try {
-            val rawText = executeWithModelFallback(prompt)
+            val (rawText, _) = executeWithModelFallback(prompt, userProfile?.customApiKey)
             if (!rawText.isNullOrBlank()) {
                 parseGeneratedLesson(cleanTopic, cleanSubject, rawText)
             } else {
@@ -203,9 +251,8 @@ class GeminiStudyService {
         """.trimIndent()
 
         try {
-            val aiFeedback = executeWithModelFallback(prompt)
+            val (aiFeedback, _) = executeWithModelFallback(prompt, userProfile?.customApiKey)
             if (!aiFeedback.isNullOrBlank()) {
-                // Determine bonus XP according to effort length
                 val bonus = if (cleanProof.length > 50) 20 else 15
                 TaskVerificationResult(
                     isApproved = true,
@@ -340,7 +387,7 @@ class GeminiStudyService {
             ---FIN_TARJETA---
         """.trimIndent()
 
-        val aiResponse = executeWithModelFallback(prompt)
+        val (aiResponse, _) = executeWithModelFallback(prompt, userProfile?.customApiKey)
         if (!aiResponse.isNullOrBlank()) {
             val parsed = parseFlashcards(aiResponse)
             if (parsed.isNotEmpty()) return@withContext parsed
@@ -374,7 +421,7 @@ class GeminiStudyService {
             ---FIN_PREGUNTA---
         """.trimIndent()
 
-        val aiResponse = executeWithModelFallback(prompt)
+        val (aiResponse, _) = executeWithModelFallback(prompt, userProfile?.customApiKey)
         if (!aiResponse.isNullOrBlank()) {
             val parsed = parseQuiz(aiResponse)
             if (parsed.isNotEmpty()) return@withContext parsed
@@ -531,6 +578,203 @@ class GeminiStudyService {
                 correctIndex = 1,
                 explanation = "La técnica Feynman de explicar el tema con tus palabras consolida el aprendizaje profundo."
             )
+        )
+    }
+
+    /**
+     * Generación de Cursos y Rutas de Aprendizaje Personalizadas con Lupo IA
+     */
+    suspend fun generateCourseWithAi(
+        subject: String,
+        goal: String,
+        level: String,
+        weeks: Int,
+        userProfile: UserProfileEntity? = null
+    ): CourseEntity = withContext(Dispatchers.IO) {
+        val cleanSubject = subject.ifBlank { "Materia General" }
+        val cleanGoal = goal.ifBlank { "Dominar los fundamentos de $cleanSubject" }
+        val cleanLevel = level.ifBlank { userProfile?.educationLevel ?: "Preparatoria" }
+        val prompt = """
+            Eres Lupo, el tutor inteligente y diseñador de rutas de aprendizaje. Crea un curso de estudio estructurado y personalizado para:
+            - Materia: "$cleanSubject"
+            - Objetivo del estudiante: "$cleanGoal"
+            - Nivel educativo: "$cleanLevel"
+            - Duración estimada: $weeks semanas
+
+            Genera exactamente 4 módulos secuenciales y progresivos. Devuelve la información en el siguiente formato estricto:
+            TITULO_CURSO: [Título motivador del curso]
+            DESCRIPCION: [Breve descripción clara de 2 líneas]
+            HORAS_TOTALES: [Número de horas estimadas, ej. 8]
+            
+            ---MODULO---
+            NUMERO: 1
+            TITULO: [Título del Módulo 1]
+            RESUMEN: [Resumen pedagógico del módulo]
+            CONCEPTOS: [Concepto 1 | Concepto 2 | Concepto 3]
+            ---FIN_MODULO---
+            
+            ---MODULO---
+            NUMERO: 2
+            TITULO: [Título del Módulo 2]
+            RESUMEN: [Resumen pedagógico del módulo]
+            CONCEPTOS: [Concepto 1 | Concepto 2 | Concepto 3]
+            ---FIN_MODULO---
+            
+            ---MODULO---
+            NUMERO: 3
+            TITULO: [Título del Módulo 3]
+            RESUMEN: [Resumen pedagógico del módulo]
+            CONCEPTOS: [Concepto 1 | Concepto 2 | Concepto 3]
+            ---FIN_MODULO---
+            
+            ---MODULO---
+            NUMERO: 4
+            TITULO: [Título del Módulo 4]
+            RESUMEN: [Resumen pedagógico del módulo]
+            CONCEPTOS: [Concepto 1 | Concepto 2 | Concepto 3]
+            ---FIN_MODULO---
+        """.trimIndent()
+
+        val (rawResponse, _) = executeWithModelFallback(prompt, userProfile?.customApiKey)
+        if (!rawResponse.isNullOrBlank()) {
+            val parsedCourse = parseCourseResponse(cleanSubject, cleanGoal, cleanLevel, rawResponse)
+            if (parsedCourse != null) return@withContext parsedCourse
+        }
+
+        getOfflineCourse(cleanSubject, cleanGoal, cleanLevel, weeks)
+    }
+
+    private fun parseCourseResponse(
+        subject: String,
+        goal: String,
+        level: String,
+        rawText: String
+    ): CourseEntity? {
+        try {
+            var title = "Curso de $subject"
+            var description = "Ruta de aprendizaje personalizada para $goal."
+            var hours = 8
+
+            val lines = rawText.lines()
+            for (line in lines) {
+                val l = line.trim()
+                when {
+                    l.startsWith("TITULO_CURSO:", ignoreCase = true) -> title = l.substringAfter(":").trim()
+                    l.startsWith("DESCRIPCION:", ignoreCase = true) -> description = l.substringAfter(":").trim()
+                    l.startsWith("HORAS_TOTALES:", ignoreCase = true) -> {
+                        hours = l.substringAfter(":").trim().filter { it.isDigit() }.toIntOrNull() ?: 8
+                    }
+                }
+            }
+
+            val modules = mutableListOf<CourseModuleItem>()
+            val moduleBlocks = rawText.split("---MODULO---")
+            var idCounter = 1
+
+            for (block in moduleBlocks) {
+                val clean = block.substringBefore("---FIN_MODULO---").trim()
+                if (clean.isBlank()) continue
+
+                var mTitle = ""
+                var mSummary = ""
+                val mConcepts = mutableListOf<String>()
+
+                clean.lines().forEach { line ->
+                    val l = line.trim()
+                    when {
+                        l.startsWith("TITULO:", ignoreCase = true) -> mTitle = l.substringAfter(":").trim()
+                        l.startsWith("RESUMEN:", ignoreCase = true) -> mSummary = l.substringAfter(":").trim()
+                        l.startsWith("CONCEPTOS:", ignoreCase = true) -> {
+                            val rawConcepts = l.substringAfter(":").split("|")
+                            mConcepts.addAll(rawConcepts.map { it.trim() }.filter { it.isNotBlank() })
+                        }
+                    }
+                }
+
+                if (mTitle.isNotBlank()) {
+                    modules.add(
+                        CourseModuleItem(
+                            id = idCounter++,
+                            title = mTitle,
+                            summary = mSummary.ifBlank { "Aprenderás conceptos y ejercicios clave." },
+                            keyPoints = if (mConcepts.isNotEmpty()) mConcepts else listOf("Fundamentos", "Ejercicios", "Autoevaluación"),
+                            isCompleted = false
+                        )
+                    )
+                }
+            }
+
+            if (modules.isNotEmpty()) {
+                val jsonModules = Json.encodeToString(modules)
+                return CourseEntity(
+                    title = title,
+                    subject = subject,
+                    description = description,
+                    level = level,
+                    estimatedHours = hours,
+                    totalLessons = modules.size,
+                    completedLessons = 0,
+                    isCustom = true,
+                    createdWithAi = true,
+                    syllabusJson = jsonModules,
+                    colorHex = "#6366F1"
+                )
+            }
+        } catch (e: Exception) {
+            // Fallback to offline course
+        }
+        return null
+    }
+
+    fun getOfflineCourse(
+        subject: String,
+        goal: String,
+        level: String,
+        weeks: Int
+    ): CourseEntity {
+        val modules = listOf(
+            CourseModuleItem(
+                id = 1,
+                title = "Fundamentos y Conceptos Clave de $subject",
+                summary = "Introducción sistemática y comprensión de los pilares principales.",
+                keyPoints = listOf("Definiciones base", "Leyes o fórmulas iniciales", "Ejemplos introductorios"),
+                isCompleted = false
+            ),
+            CourseModuleItem(
+                id = 2,
+                title = "Mecanismos y Resolución de Problemas",
+                summary = "Técnicas prácticas para resolver ejercicios típicos de examen paso a paso.",
+                keyPoints = listOf("Identificación de datos", "Procedimientos estándar", "Comprobación de respuestas"),
+                isCompleted = false
+            ),
+            CourseModuleItem(
+                id = 3,
+                title = "Aplicaciones Prácticas y Casos Complejos",
+                summary = "Conexión de conceptos teóricos con problemas avanzados y casos reales.",
+                keyPoints = listOf("Problemas combinados", "Trampas comunes en evaluaciones", "Mnemotecnias"),
+                isCompleted = false
+            ),
+            CourseModuleItem(
+                id = 4,
+                title = "Repaso Maestro y Simulacro Final",
+                summary = "Consolidación de todo lo aprendido con tarjetas de memoria y simulacro de evaluación.",
+                keyPoints = listOf("Resumen Feynman", "Flashcards de repaso", "Examen de dominio final"),
+                isCompleted = false
+            )
+        )
+
+        return CourseEntity(
+            title = "Curso Maestro de $subject",
+            subject = subject,
+            description = "Ruta de estudio personalizada creada por Lupo para $goal ($level).",
+            level = level,
+            estimatedHours = (weeks * 2).coerceAtLeast(6),
+            totalLessons = modules.size,
+            completedLessons = 0,
+            isCustom = true,
+            createdWithAi = false,
+            syllabusJson = Json.encodeToString(modules),
+            colorHex = "#6366F1"
         )
     }
 }

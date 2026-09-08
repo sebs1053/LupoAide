@@ -21,7 +21,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.lupoaide.data.local.CourseEntity
+import com.example.lupoaide.data.local.CourseModuleItem
 import com.example.lupoaide.data.local.LessonEntity
+import com.example.lupoaide.ui.components.CoursesView
 import com.example.lupoaide.ui.components.GenerateAiLessonDialog
 import com.example.lupoaide.ui.components.ShareLessonUtils
 import kotlinx.coroutines.delay
@@ -29,10 +32,16 @@ import kotlinx.coroutines.delay
 @Composable
 fun LessonsScreen(
     lessons: List<LessonEntity>,
+    courses: List<CourseEntity> = emptyList(),
     isAiConnected: Boolean,
     isGeneratingLesson: Boolean,
+    isGeneratingCourse: Boolean = false,
     onAddLesson: (title: String, subject: String, summary: String, content: String, keyPoints: String) -> Unit,
     onGenerateAiLesson: (subject: String, topic: String) -> Unit,
+    onGenerateCourseWithAi: (subject: String, goal: String, level: String, weeks: Int) -> Unit = { _, _, _, _ -> },
+    onAddManualCourse: (title: String, subject: String, description: String, level: String, estimatedHours: Int, modules: List<CourseModuleItem>) -> Unit = { _, _, _, _, _, _ -> },
+    onCompleteCourseLesson: (CourseEntity) -> Unit = {},
+    onDeleteCourse: (Int) -> Unit = {},
     onUpdateLesson: (LessonEntity) -> Unit,
     onDeleteLesson: (Int) -> Unit,
     onAskLupoAboutLesson: (lessonTitle: String, subject: String) -> Unit,
@@ -42,6 +51,7 @@ fun LessonsScreen(
     onOpenAllFlashcards: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    var activeTab by remember { mutableStateOf(0) } // 0: Lecciones, 1: Cursos Personalizados
     var showAddDialog by remember { mutableStateOf(false) }
     var showAiGenerateDialog by remember { mutableStateOf(false) }
     var selectedSubjectFilter by remember { mutableStateOf("Todas") }
@@ -60,34 +70,36 @@ fun LessonsScreen(
 
     Scaffold(
         floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SmallFloatingActionButton(
-                    onClick = onOpenAllFlashcards,
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.testTag("flashcards_fab")
+            if (activeTab == 0) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Style, contentDescription = "Ver Flashcards")
-                }
+                    SmallFloatingActionButton(
+                        onClick = onOpenAllFlashcards,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.testTag("flashcards_fab")
+                    ) {
+                        Icon(Icons.Default.Style, contentDescription = "Ver Flashcards")
+                    }
 
-                // Botón IA flotante
-                ExtendedFloatingActionButton(
-                    onClick = { showAiGenerateDialog = true },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
-                    text = { Text("Generar con IA") },
-                    modifier = Modifier.testTag("ai_generate_lesson_fab")
-                )
+                    // Botón IA flotante
+                    ExtendedFloatingActionButton(
+                        onClick = { showAiGenerateDialog = true },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
+                        text = { Text("Generar con IA") },
+                        modifier = Modifier.testTag("ai_generate_lesson_fab")
+                    )
 
-                FloatingActionButton(
-                    onClick = { showAddDialog = true },
-                    modifier = Modifier.testTag("add_lesson_fab")
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Nueva Lección Manual")
+                    FloatingActionButton(
+                        onClick = { showAddDialog = true },
+                        modifier = Modifier.testTag("add_lesson_fab")
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Nueva Lección Manual")
+                    }
                 }
             }
         }
@@ -98,84 +110,120 @@ fun LessonsScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Pestañas de Navegación: Lecciones vs Cursos Personalizados
+            TabRow(
+                selectedTabIndex = activeTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Lecciones y Temas de Estudio",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Genera temas con IA o crea apuntes para estudiar con Lupo.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Tab(
+                    selected = activeTab == 0,
+                    onClick = { activeTab = 0 },
+                    text = { Text("Apuntes y Lecciones (${lessons.size})", fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Normal) },
+                    icon = { Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                )
+                Tab(
+                    selected = activeTab == 1,
+                    onClick = { activeTab = 1 },
+                    text = { Text("Cursos con IA (${courses.size})", fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Normal) },
+                    icon = { Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Estado de IA
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (isAiConnected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                else MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            if (activeTab == 1) {
+                // Vista de Cursos Personalizados
+                CoursesView(
+                    courses = courses,
+                    isGeneratingCourse = isGeneratingCourse,
+                    onGenerateCourseWithAi = onGenerateCourseWithAi,
+                    onAddManualCourse = onAddManualCourse,
+                    onCompleteCourseLesson = onCompleteCourseLesson,
+                    onDeleteCourse = onDeleteCourse,
+                    onStudyModuleWithLupo = onAskLupoAboutLesson
+                )
+            } else {
+                // Vista de Lecciones y Apuntes
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            if (isAiConnected) Icons.Default.CheckCircle else Icons.Default.SmartToy,
-                            contentDescription = null,
-                            tint = if (isAiConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isAiConnected) "Lupo IA Conectada (Gemini Flash)" else "Lupo Modo Base Activo",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = "Lecciones y Temas de Estudio",
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
+                        Text(
+                            text = "Genera temas con IA o crea apuntes para estudiar con Lupo.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
+                }
 
-                    if (isGeneratingLesson) {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Estado de IA
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isAiConnected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                            Icon(
+                                if (isAiConnected) Icons.Default.CheckCircle else Icons.Default.SmartToy,
+                                contentDescription = null,
+                                tint = if (isAiConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Generando...", style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                text = if (isAiConnected) "Lupo IA Conectada (Gemini Flash)" else "Lupo Modo Base Activo",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (isGeneratingLesson) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Generando...", style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Filtros de materia
-            if (subjects.size > 1) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(subjects) { subj ->
-                        val isSelected = subj == selectedSubjectFilter
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedSubjectFilter = subj },
-                            label = { Text(subj) }
-                        )
+                // Filtros de materia
+                if (subjects.size > 1) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(subjects) { subj ->
+                            val isSelected = subj == selectedSubjectFilter
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedSubjectFilter = subj },
+                                label = { Text(subj) }
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
-                Spacer(modifier = Modifier.height(10.dp))
-            }
 
             if (filteredLessons.isEmpty()) {
                 Box(
@@ -367,6 +415,7 @@ fun LessonsScreen(
                 }
             }
         }
+    }
 
         // Diálogo para crear lección manual
         if (showAddDialog) {

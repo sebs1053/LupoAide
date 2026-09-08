@@ -107,7 +107,49 @@ object BlockerPermissionHelper {
     }
 
     /**
-     * Verifica si el servicio de accesibilidad de LupoAide está activo
+     * Verifica si la app tiene permiso de Acceso al Uso (PACKAGE_USAGE_STATS).
+     * Este es el estándar oficial de Google y Bienestar Digital (Digital Wellbeing).
+     * NO genera alertas de privacidad ni riesgos de seguridad al instalar la app.
+     */
+    fun hasUsageStatsPermission(context: Context): Boolean {
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    /**
+     * Abre la pantalla oficial de Android para "Acceso a datos de uso".
+     * Esta pantalla es nativa y no muestra la advertencia invasiva de accesibilidad.
+     */
+    fun openUsageStatsSettings(context: Context) {
+        try {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                data = Uri.parse("package:${context.packageName}")
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val fallback = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(fallback)
+            } catch (e2: Exception) {
+                val general = Intent(Settings.ACTION_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(general)
+            }
+        }
+    }
+
+    /**
+     * Verifica si el servicio de accesibilidad de LupoAide está activo (modo opcional estricto)
      */
     fun isAccessibilityServiceEnabled(context: Context): Boolean {
         val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return false
@@ -122,7 +164,7 @@ object BlockerPermissionHelper {
     }
 
     /**
-     * Abre los ajustes del sistema para que el usuario habilite el Servicio de Accesibilidad de LupoAide
+     * Abre los ajustes del sistema para accesibilidad
      */
     fun openAccessibilitySettings(context: Context) {
         try {

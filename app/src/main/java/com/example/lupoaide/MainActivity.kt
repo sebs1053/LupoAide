@@ -44,6 +44,10 @@ class MainActivity : ComponentActivity() {
                 val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle()
                 val isThinking by viewModel.isLupoThinking.collectAsStateWithLifecycle()
                 val isGeneratingLesson by viewModel.isGeneratingLesson.collectAsStateWithLifecycle()
+                val courses by viewModel.courses.collectAsStateWithLifecycle()
+                val isGeneratingCourse by viewModel.isGeneratingCourse.collectAsStateWithLifecycle()
+                val aiTestResult by viewModel.aiTestResult.collectAsStateWithLifecycle()
+                val isTestingAi by viewModel.isTestingAi.collectAsStateWithLifecycle()
 
                 var currentScreen by remember { mutableStateOf(LupoScreen.HOME) }
                 var showChatModal by remember { mutableStateOf(false) }
@@ -138,13 +142,27 @@ class MainActivity : ComponentActivity() {
                                 )
                                 LupoScreen.LESSONS -> LessonsScreen(
                                     lessons = lessons,
+                                    courses = courses,
                                     isAiConnected = viewModel.isAiConnected(),
                                     isGeneratingLesson = isGeneratingLesson,
+                                    isGeneratingCourse = isGeneratingCourse,
                                     onAddLesson = { title, subject, summary, content, keyPoints ->
                                         viewModel.addLesson(title, subject, summary, content, keyPoints)
                                     },
                                     onGenerateAiLesson = { subject, topic ->
                                         viewModel.generateLessonWithAi(subject, topic)
+                                    },
+                                    onGenerateCourseWithAi = { subject, goal, level, weeks ->
+                                        viewModel.generateCourseWithAi(subject, goal, level, weeks)
+                                    },
+                                    onAddManualCourse = { title, subject, desc, level, hours, modules ->
+                                        viewModel.addCourse(title, subject, desc, level, hours, modules)
+                                    },
+                                    onCompleteCourseLesson = { course ->
+                                        viewModel.completeCourseLesson(course)
+                                    },
+                                    onDeleteCourse = { courseId ->
+                                        viewModel.deleteCourse(courseId)
                                     },
                                     onUpdateLesson = { viewModel.updateLesson(it) },
                                     onDeleteLesson = { viewModel.deleteLesson(it) },
@@ -177,6 +195,16 @@ class MainActivity : ComponentActivity() {
                                 LupoScreen.PROFILE -> ProfileScreen(
                                     profile = profile,
                                     blockedApps = blockedApps,
+                                    isAiConnected = viewModel.isAiConnected(),
+                                    aiTestResult = aiTestResult,
+                                    isTestingAi = isTestingAi,
+                                    onTestAiConnection = { viewModel.testAiConnection() },
+                                    onClearAiTestResult = { viewModel.clearAiTestResult() },
+                                    onSaveApiKey = { apiKey -> viewModel.updateCustomApiKey(apiKey) },
+                                    onUpdateNotificationPreferences = { notif, exams, backpack ->
+                                        viewModel.updateNotificationPreferences(notif, exams, backpack)
+                                    },
+                                    onSendTestNotification = { viewModel.sendTestNotification() },
                                     onUpdateProfile = { viewModel.completeOnboarding(it.username, it.country, it.educationLevel, it.grade, it.institution, it.additionalInfo, it.language) },
                                     onToggleAppBlocked = { viewModel.toggleAppBlocked(it) },
                                     onUpdateBlockedApp = { viewModel.updateBlockedApp(it) },

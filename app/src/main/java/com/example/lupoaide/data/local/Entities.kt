@@ -82,7 +82,41 @@ data class UserProfileEntity(
     val additionalInfo: String = "",
     val isOnboardingCompleted: Boolean = false,
     val activeOutfitId: String = "default", // default, scholar, scientist, coder, artist, focus_master, king
-    val unlockedOutfits: String = "default"  // Comma-separated list of unlocked outfit IDs
+    val unlockedOutfits: String = "default",  // Comma-separated list of unlocked outfit IDs
+    val customApiKey: String = "",           // API Key de Gemini opcional proporcionada por el usuario
+    val notificationsEnabled: Boolean = true,
+    val examRemindersEnabled: Boolean = true,
+    val backpackRemindersEnabled: Boolean = true
+)
+
+@Serializable
+@Entity(tableName = "courses")
+data class CourseEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val title: String,
+    val subject: String,
+    val description: String = "",
+    val level: String = "Preparatoria / Bachillerato",
+    val estimatedHours: Int = 10,
+    val totalLessons: Int = 4,
+    val completedLessons: Int = 0,
+    val isCustom: Boolean = true,
+    val createdWithAi: Boolean = false,
+    val syllabusJson: String = "", // JSON de módulos y temas del curso
+    val colorHex: String = "#6366F1",
+    val timestamp: Long = System.currentTimeMillis()
+) {
+    val progress: Float
+        get() = if (totalLessons > 0) (completedLessons.toFloat() / totalLessons.toFloat()).coerceIn(0f, 1f) else 0f
+}
+
+@Serializable
+data class CourseModuleItem(
+    val id: Int,
+    val title: String,
+    val summary: String,
+    val keyPoints: List<String> = emptyList(),
+    val isCompleted: Boolean = false
 )
 
 @Serializable
