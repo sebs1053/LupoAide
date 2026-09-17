@@ -115,7 +115,8 @@ class MainActivity : ComponentActivity() {
                                     onOpenBackpack = { showBackpackModal = true },
                                     onOpenExams = { showExamsModal = true },
                                     onOpenFlashcards = { showFlashcardsModal = true },
-                                    onOpenShop = { showShopModal = true }
+                                    onOpenShop = { showShopModal = true },
+                                    onActivateStreak = { viewModel.activateStreakToday() }
                                 )
                                 LupoScreen.TIMETABLE -> TimetableScreen(
                                     slots = slots,
@@ -201,10 +202,20 @@ class MainActivity : ComponentActivity() {
                                     onTestAiConnection = { viewModel.testAiConnection() },
                                     onClearAiTestResult = { viewModel.clearAiTestResult() },
                                     onSaveApiKey = { apiKey -> viewModel.updateCustomApiKey(apiKey) },
-                                    onUpdateNotificationPreferences = { notif, exams, backpack ->
-                                        viewModel.updateNotificationPreferences(notif, exams, backpack)
+                                    onUpdateNotificationPreferences = { notif, exams, backpack, streakReminders, streakTime, backpackTime, examHours ->
+                                        viewModel.updateNotificationPreferences(
+                                            notificationsEnabled = notif,
+                                            examRemindersEnabled = exams,
+                                            backpackRemindersEnabled = backpack,
+                                            streakRemindersEnabled = streakReminders,
+                                            streakReminderTime = streakTime,
+                                            backpackReminderTime = backpackTime,
+                                            examReminderHoursBefore = examHours
+                                        )
                                     },
                                     onSendTestNotification = { viewModel.sendTestNotification() },
+                                    onSendTestStreakNotification = { isUrgent -> viewModel.sendTestStreakNotification(isUrgent) },
+                                    onActivateStreakToday = { viewModel.activateStreakToday() },
                                     onUpdateProfile = { viewModel.completeOnboarding(it.username, it.country, it.educationLevel, it.grade, it.institution, it.additionalInfo, it.language) },
                                     onToggleAppBlocked = { viewModel.toggleAppBlocked(it) },
                                     onUpdateBlockedApp = { viewModel.updateBlockedApp(it) },
@@ -316,6 +327,9 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onEquip = { outfitId ->
                                         viewModel.equipOutfit(outfitId)
+                                    },
+                                    onBuyStreakFreeze = {
+                                        viewModel.buyStreakFreeze(cost = 50)
                                     },
                                     onDismiss = { showShopModal = false }
                                 )

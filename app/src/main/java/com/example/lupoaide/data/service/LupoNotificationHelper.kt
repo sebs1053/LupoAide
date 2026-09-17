@@ -114,6 +114,90 @@ object LupoNotificationHelper {
         }
     }
 
+    /**
+     * Notificación de Racha:
+     * Recuerda al usuario activar su racha diaria hasta que ingrese a estudiar.
+     */
+    fun sendStreakReminderAlert(context: Context, streakDays: Int, isUrgent: Boolean = false): Boolean {
+        initNotificationChannels(context)
+        if (!canSendNotifications(context)) return false
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("action", "activate_streak")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            10,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val title = if (isUrgent) {
+            "⚠️ ¡Última oportunidad! Tu racha de $streakDays días se apaga hoy"
+        } else {
+            "🔥 ¡Activa tu racha de hoy en LupoAide!"
+        }
+
+        val text = if (isUrgent) {
+            "Quedan pocas horas. Entra ahora a repasar un apunte, contestar un quiz o completar una tarea para no perder tu racha de $streakDays días."
+        } else {
+            "Lupo te espera listo para estudiar. ¡Ingresa a activar tu racha de $streakDays días, mantén tu fuego encendido y gana EXP extra!"
+        }
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_STUDY_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+
+        return try {
+            NotificationManagerCompat.from(context).notify(NOTIF_ID_STREAK, builder.build())
+            true
+        } catch (e: SecurityException) {
+            false
+        }
+    }
+
+    /**
+     * Celebración cuando el usuario activa la racha del día
+     */
+    fun sendStreakActivatedCelebration(context: Context, newStreakDays: Int): Boolean {
+        initNotificationChannels(context)
+        if (!canSendNotifications(context)) return false
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            11,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val text = "🎉 ¡Excelente trabajo! Activaste tu racha de $newStreakDays días seguidos. Lupo está súper motivado hoy. ¡Sigue así!"
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_STUDY_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("🔥 ¡Racha de hoy ACTIVADA!")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+
+        return try {
+            NotificationManagerCompat.from(context).notify(NOTIF_ID_STREAK, builder.build())
+            true
+        } catch (e: SecurityException) {
+            false
+        }
+    }
+
     fun sendExamAlert(context: Context, examTitle: String, subject: String, examDate: String): Boolean {
         initNotificationChannels(context)
         if (!canSendNotifications(context)) return false

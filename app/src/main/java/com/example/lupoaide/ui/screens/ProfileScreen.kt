@@ -23,6 +23,9 @@ import androidx.compose.ui.unit.sp
 import com.example.lupoaide.data.local.BlockedAppEntity
 import com.example.lupoaide.data.local.UserProfileEntity
 import com.example.lupoaide.data.service.BlockerPermissionHelper
+import com.example.lupoaide.ui.components.LupoTimePickerDialog
+import com.example.lupoaide.ui.components.StreakCalendarHeatmapCard
+import com.example.lupoaide.ui.components.WeeklyStudyStatsCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,8 +38,18 @@ fun ProfileScreen(
     onTestAiConnection: () -> Unit = {},
     onClearAiTestResult: () -> Unit = {},
     onSaveApiKey: (String) -> Unit = {},
-    onUpdateNotificationPreferences: (notifications: Boolean, exams: Boolean, backpack: Boolean) -> Unit = { _, _, _ -> },
+    onUpdateNotificationPreferences: (
+        notifications: Boolean,
+        exams: Boolean,
+        backpack: Boolean,
+        streakReminders: Boolean,
+        streakTime: String,
+        backpackTime: String,
+        examHoursBefore: Int
+    ) -> Unit = { _, _, _, _, _, _, _ -> },
     onSendTestNotification: () -> Boolean = { true },
+    onSendTestStreakNotification: (isUrgent: Boolean) -> Boolean = { false },
+    onActivateStreakToday: () -> Unit = {},
     onUpdateProfile: (UserProfileEntity) -> Unit,
     onToggleAppBlocked: (BlockedAppEntity) -> Unit = {},
     onUpdateBlockedApp: (BlockedAppEntity) -> Unit = {},
@@ -67,11 +80,18 @@ fun ProfileScreen(
     var hasUsageStats by remember { mutableStateOf(BlockerPermissionHelper.hasUsageStatsPermission(context)) }
     val isAccessibilityGranted = remember { BlockerPermissionHelper.isAccessibilityServiceEnabled(context) }
 
-    // Notificaciones
+    // Notificaciones y Recordatorios Configurables
     var notificationsEnabled by remember(profile?.notificationsEnabled) { mutableStateOf(profile?.notificationsEnabled ?: true) }
     var examReminders by remember(profile?.examRemindersEnabled) { mutableStateOf(profile?.examRemindersEnabled ?: true) }
     var backpackReminders by remember(profile?.backpackRemindersEnabled) { mutableStateOf(profile?.backpackRemindersEnabled ?: true) }
+    var streakReminders by remember(profile?.streakRemindersEnabled) { mutableStateOf(profile?.streakRemindersEnabled ?: true) }
+    var streakTime by remember(profile?.streakReminderTime) { mutableStateOf(profile?.streakReminderTime ?: "19:00") }
+    var backpackTime by remember(profile?.backpackReminderTime) { mutableStateOf(profile?.backpackReminderTime ?: "20:00") }
+    var examHoursBefore by remember(profile?.examReminderHoursBefore) { mutableIntStateOf(profile?.examReminderHoursBefore ?: 24) }
     var testNotificationSentMsg by remember { mutableStateOf<String?>(null) }
+
+    var showStreakTimeDialog by remember { mutableStateOf(false) }
+    var showBackpackTimeDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -177,6 +197,22 @@ fun ProfileScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+
+        // Calendario de Rachas (Heatmap mensual con escudos de congelación)
+        item {
+            StreakCalendarHeatmapCard(
+                profile = profile,
+                onOpenShop = onOpenShop
+            )
+        }
+
+        // Estadísticas Semanales de Estudio y Concentración
+        item {
+            WeeklyStudyStatsCard(
+                profile = profile,
+                blockedApps = blockedApps
+            )
         }
 
         // =========================================================================
@@ -623,6 +659,31 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = "Seguridad GitHub",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "🔒 Seguridad GitHub: Puedes poner tu clave en el archivo local '.env' (en la raíz del proyecto) o ingresarla aquí en tu teléfono. El archivo .env y tus datos locales están en .gitignore y NUNCA se subirán a tu repositorio público.",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+
                     // Campo para ingresar API Key personalizada si lo desea
                     OutlinedTextField(
                         value = apiKeyInput,
@@ -733,90 +794,422 @@ fun ProfileScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.NotificationsActive,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Notificaciones y Recordatorios",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                    // Encabezado con Interruptor Maestro
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.NotificationsActive,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Notificaciones y Recordatorios",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Switch(
+                            checked = notificationsEnabled,
+                            onCheckedChange = {
+                                notificationsEnabled = it
+                                onUpdateNotificationPreferences(
+                                    notificationsEnabled,
+                                    examReminders,
+                                    backpackReminders,
+                                    streakReminders,
+                                    streakTime,
+                                    backpackTime,
+                                    examHoursBefore
+                                )
+                            }
                         )
                     }
 
                     Text(
-                        text = "Recibe avisos antes de exámenes importantes y alertas de mochila la noche anterior para no olvidar cuadernos.",
+                        text = "Configura alertas inteligentes y personaliza los horarios exactos en los que deseas que Lupo te avise.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // Estado actual de la racha hoy
+                    val isStreakActive = profile?.isStreakActiveToday == true
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isStreakActive) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Recordatorios de Exámenes", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                            Text(text = "Avisos 24h y 2h antes de cada prueba", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(
-                            checked = examReminders,
-                            onCheckedChange = {
-                                examReminders = it
-                                onUpdateNotificationPreferences(notificationsEnabled, examReminders, backpackReminders)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocalFireDepartment,
+                                        contentDescription = null,
+                                        tint = if (isStreakActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isStreakActive) "🔥 Racha de hoy: ACTIVADA (${profile?.studyStreak ?: 1} días)" else "⚡ Racha de hoy: PENDIENTE",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isStreakActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+
+                                if (!isStreakActive) {
+                                    Button(
+                                        onClick = {
+                                            onActivateStreakToday()
+                                            testNotificationSentMsg = "🎉 ¡Racha activada con éxito! +25 EXP otorgados."
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(34.dp)
+                                    ) {
+                                        Text("Activar (+25 XP)", fontSize = 12.sp)
+                                    }
+                                }
                             }
-                        )
+
+                            Text(
+                                text = if (isStreakActive) {
+                                    "¡Gran trabajo! Ya estudiaste hoy. Las alertas de racha permanecerán silenciadas hasta mañana para no interrumpirte."
+                                } else {
+                                    "Aún no has activado tu racha hoy. Lupo te enviará alertas a las $streakTime hasta que ingreses a estudiar o hagas check-in."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
-                    Divider()
+                    HorizontalDivider()
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Alerta de Mochila Nocturna", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                            Text(text = "Recordatorio a las 20:00 para preparar materiales de mañana", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(
-                            checked = backpackReminders,
-                            onCheckedChange = {
-                                backpackReminders = it
-                                onUpdateNotificationPreferences(notificationsEnabled, examReminders, backpackReminders)
+                    // ==========================================
+                    // 1. RECORDATORIOS DE RACHA ("ACTIVA TU RACHA")
+                    // ==========================================
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.LocalFireDepartment,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Recordatorios de Racha Diaria",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = "Se envían hasta que actives tu racha para proteger tus días seguidos",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                        )
+                            Switch(
+                                checked = streakReminders && notificationsEnabled,
+                                enabled = notificationsEnabled,
+                                onCheckedChange = {
+                                    streakReminders = it
+                                    onUpdateNotificationPreferences(
+                                        notificationsEnabled,
+                                        examReminders,
+                                        backpackReminders,
+                                        streakReminders,
+                                        streakTime,
+                                        backpackTime,
+                                        examHoursBefore
+                                    )
+                                }
+                            )
+                        }
+
+                        if (streakReminders && notificationsEnabled) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "⏰ Horario de aviso: $streakTime",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        OutlinedButton(
+                                            onClick = { showStreakTimeDialog = true },
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                            modifier = Modifier.height(32.dp)
+                                        ) {
+                                            Text("Modificar Horario", fontSize = 12.sp)
+                                        }
+                                    }
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        FilledTonalButton(
+                                            onClick = {
+                                                val sent = onSendTestStreakNotification(false)
+                                                testNotificationSentMsg = if (sent) "🔥 Notificación de racha enviada con éxito." else "⚠️ Habilita permisos de notificación en el sistema."
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.weight(1f),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                        ) {
+                                            Text("🔥 Probar Alerta de Racha", fontSize = 11.sp, maxLines = 1)
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = {
+                                                val sent = onSendTestStreakNotification(true)
+                                                testNotificationSentMsg = if (sent) "⚠️ Alerta urgente nocturna enviada con éxito." else "⚠️ Permiso no disponible."
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.weight(1f),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                        ) {
+                                            Text("⚠️ Alerta Urgente", fontSize = 11.sp, maxLines = 1)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
+                    HorizontalDivider()
+
+                    // ==========================================
+                    // 2. ALERTA NOCTURNA DE MOCHILA
+                    // ==========================================
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Backpack,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Alerta Nocturna de Mochila",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = "Avisa qué cuadernos y útiles empacar según tus clases de mañana",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = backpackReminders && notificationsEnabled,
+                                enabled = notificationsEnabled,
+                                onCheckedChange = {
+                                    backpackReminders = it
+                                    onUpdateNotificationPreferences(
+                                        notificationsEnabled,
+                                        examReminders,
+                                        backpackReminders,
+                                        streakReminders,
+                                        streakTime,
+                                        backpackTime,
+                                        examHoursBefore
+                                    )
+                                }
+                            )
+                        }
+
+                        if (backpackReminders && notificationsEnabled) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "⏰ Horario de alerta: $backpackTime",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                    OutlinedButton(
+                                        onClick = { showBackpackTimeDialog = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Text("Modificar Horario", fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    // ==========================================
+                    // 3. RECORDATORIOS DE EXÁMENES
+                    // ==========================================
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.EventNote,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Recordatorios de Exámenes",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = "Avisos para repasar antes de fechas de evaluación",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = examReminders && notificationsEnabled,
+                                enabled = notificationsEnabled,
+                                onCheckedChange = {
+                                    examReminders = it
+                                    onUpdateNotificationPreferences(
+                                        notificationsEnabled,
+                                        examReminders,
+                                        backpackReminders,
+                                        streakReminders,
+                                        streakTime,
+                                        backpackTime,
+                                        examHoursBefore
+                                    )
+                                }
+                            )
+                        }
+
+                        if (examReminders && notificationsEnabled) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Anticipación:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                listOf(12, 24, 48).forEach { hours ->
+                                    val isSelected = examHoursBefore == hours
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = {
+                                            examHoursBefore = hours
+                                            onUpdateNotificationPreferences(
+                                                notificationsEnabled,
+                                                examReminders,
+                                                backpackReminders,
+                                                streakReminders,
+                                                streakTime,
+                                                backpackTime,
+                                                hours
+                                            )
+                                            testNotificationSentMsg = "📅 Anticipación de exámenes fijada en $hours horas antes."
+                                        },
+                                        label = { Text("${hours}h antes", fontSize = 12.sp) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    // Botón de prueba general
                     FilledTonalButton(
                         onClick = {
                             val sent = onSendTestNotification()
-                            testNotificationSentMsg = if (sent) "✅ Notificación de prueba enviada al sistema." else "⚠️ Permiso de notificaciones deshabilitado en el sistema."
+                            testNotificationSentMsg = if (sent) "✅ Notificación de prueba general enviada al sistema." else "⚠️ Permiso de notificaciones deshabilitado en el sistema."
                         },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Enviar Notificación de Prueba Ahora")
+                        Text("Enviar Notificación de Prueba General")
                     }
 
                     if (testNotificationSentMsg != null) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = testNotificationSentMsg!!,
                                 style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(8.dp)
+                                modifier = Modifier.padding(10.dp)
                             )
                         }
                     }
@@ -877,6 +1270,54 @@ fun ProfileScreen(
             onConfirm = { updatedProfile ->
                 onUpdateProfile(updatedProfile)
                 showEditProfileDialog = false
+            }
+        )
+    }
+
+    // Diálogo: Selector de Horario para Recordatorio de Racha
+    if (showStreakTimeDialog) {
+        LupoTimePickerDialog(
+            title = "Horario de Recordatorio de Racha",
+            initialTime = streakTime,
+            presets = listOf("17:00", "18:00", "19:00", "20:00", "21:00", "22:00"),
+            onDismiss = { showStreakTimeDialog = false },
+            onTimeSelected = { newTime ->
+                streakTime = newTime
+                showStreakTimeDialog = false
+                onUpdateNotificationPreferences(
+                    notificationsEnabled,
+                    examReminders,
+                    backpackReminders,
+                    streakReminders,
+                    newTime,
+                    backpackTime,
+                    examHoursBefore
+                )
+                testNotificationSentMsg = "⏰ Horario de recordatorio de racha actualizado a las $newTime."
+            }
+        )
+    }
+
+    // Diálogo: Selector de Horario para Alerta Nocturna de Mochila
+    if (showBackpackTimeDialog) {
+        LupoTimePickerDialog(
+            title = "Horario de Alerta Nocturna de Mochila",
+            initialTime = backpackTime,
+            presets = listOf("19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00"),
+            onDismiss = { showBackpackTimeDialog = false },
+            onTimeSelected = { newTime ->
+                backpackTime = newTime
+                showBackpackTimeDialog = false
+                onUpdateNotificationPreferences(
+                    notificationsEnabled,
+                    examReminders,
+                    backpackReminders,
+                    streakReminders,
+                    streakTime,
+                    newTime,
+                    examHoursBefore
+                )
+                testNotificationSentMsg = "🎒 Horario de alerta de mochila actualizado a las $newTime."
             }
         )
     }

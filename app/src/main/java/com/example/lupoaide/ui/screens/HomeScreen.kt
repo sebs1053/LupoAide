@@ -43,7 +43,8 @@ fun HomeScreen(
     onOpenBackpack: () -> Unit,
     onOpenExams: () -> Unit = {},
     onOpenFlashcards: () -> Unit = {},
-    onOpenShop: () -> Unit = {}
+    onOpenShop: () -> Unit = {},
+    onActivateStreak: () -> Unit = {}
 ) {
     var showAddTaskDialog by remember { mutableStateOf(false) }
     var taskToVerify by remember { mutableStateOf<TaskEntity?>(null) }
@@ -122,6 +123,115 @@ fun HomeScreen(
                                 Text("Mochila ($tomorrowDay)")
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        // Tarjeta de Estado de Racha Diaria
+        item {
+            val isStreakActive = profile?.isStreakActiveToday == true
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isStreakActive) {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    } else {
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+                    }
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("streak_status_banner")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isStreakActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiary
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = "Racha de estudio",
+                            tint = if (isStreakActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onTertiary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = if (isStreakActive) "🔥 Racha activa: ${profile?.studyStreak ?: 1} días" else "⚡ ¡Activa tu racha de hoy!",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isStreakActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            if ((profile?.streakFreezes ?: 0) > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFF0284C7).copy(alpha = 0.2f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.AcUnit,
+                                            contentDescription = "Escudos de racha",
+                                            tint = Color(0xFF0284C7),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Text(
+                                            text = "${profile?.streakFreezes}",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0284C7)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Text(
+                            text = if (isStreakActive) {
+                                "¡Objetivo del día cumplido! Recordatorios pausados hasta mañana."
+                            } else {
+                                "Haz check-in o completa tareas para no perder tus ${profile?.studyStreak ?: 1} días."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isStreakActive) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f)
+                        )
+                    }
+
+                    if (!isStreakActive) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = onActivateStreak,
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("Activar (+25 XP)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Racha cumplida",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }

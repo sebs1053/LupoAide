@@ -86,8 +86,30 @@ data class UserProfileEntity(
     val customApiKey: String = "",           // API Key de Gemini opcional proporcionada por el usuario
     val notificationsEnabled: Boolean = true,
     val examRemindersEnabled: Boolean = true,
-    val backpackRemindersEnabled: Boolean = true
-)
+    val backpackRemindersEnabled: Boolean = true,
+    val streakRemindersEnabled: Boolean = true,
+    val streakReminderTime: String = "19:00", // Formato HH:mm configurable por el usuario
+    val backpackReminderTime: String = "20:00", // Formato HH:mm configurable por el usuario
+    val examReminderHoursBefore: Int = 24, // Horas de anticipación configurables
+    val lastStreakActivatedDate: String = "", // YYYY-MM-DD
+    val streakFreezes: Int = 1, // Cantidad de escudos/congeladores de racha disponibles
+    val streakHistory: String = "" // Fechas separadas por comas (YYYY-MM-DD) de días completados
+) {
+    val isStreakActiveToday: Boolean
+        get() {
+            val today = try {
+                java.time.LocalDate.now().toString()
+            } catch (e: Exception) {
+                ""
+            }
+            return lastStreakActivatedDate == today
+        }
+
+    fun hasCompletedDate(dateStr: String): Boolean {
+        if (lastStreakActivatedDate == dateStr) return true
+        return streakHistory.split(",").map { it.trim() }.contains(dateStr)
+    }
+}
 
 @Serializable
 @Entity(tableName = "courses")

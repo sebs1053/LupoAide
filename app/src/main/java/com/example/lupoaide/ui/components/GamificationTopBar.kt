@@ -124,9 +124,10 @@ fun GamificationTopBar(
                     }
 
                     // Racha
+                    val isStreakActive = profile?.isStreakActiveToday == true
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        color = if (isStreakActive) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.testTag("streak_badge")
                     ) {
                         Row(
@@ -136,7 +137,7 @@ fun GamificationTopBar(
                             Icon(
                                 imageVector = Icons.Default.LocalFireDepartment,
                                 contentDescription = "Racha de estudio",
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                tint = if (isStreakActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -144,7 +145,7 @@ fun GamificationTopBar(
                                 text = "${profile?.studyStreak ?: 1}d",
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                color = if (isStreakActive) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

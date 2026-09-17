@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.lupoaide.data.local.*
 import com.example.lupoaide.data.remote.GeminiStudyService
 import com.example.lupoaide.data.repository.LupoRepository
+import com.example.lupoaide.data.service.LupoAlarmScheduler
 import com.example.lupoaide.data.service.LupoNotificationHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -160,6 +161,15 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
             SharingStarted.WhileSubscribed(5000),
             emptyList()
         )
+
+        // Sincronizar automáticamente la programación de alarmas con el perfil
+        viewModelScope.launch {
+            userProfile.collectLatest { profile ->
+                if (profile != null) {
+                    LupoAlarmScheduler.scheduleAllReminders(application, profile)
+                }
+            }
+        }
     }
 
     // Configuración Inicial / Onboarding
@@ -477,22 +487,52 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
     fun updateNotificationPreferences(
         notificationsEnabled: Boolean,
         examRemindersEnabled: Boolean,
-        backpackRemindersEnabled: Boolean
+        backpackRemindersEnabled: Boolean,
+        streakRemindersEnabled: Boolean = true,
+        streakReminderTime: String = "19:00",
+        backpackReminderTime: String = "20:00",
+        examReminderHoursBefore: Int = 24
     ) {
         viewModelScope.launch {
             val current = userProfile.value ?: return@launch
-            repository.updateProfile(
-                current.copy(
-                    notificationsEnabled = notificationsEnabled,
-                    examRemindersEnabled = examRemindersEnabled,
-                    backpackRemindersEnabled = backpackRemindersEnabled
-                )
+            val updated = current.copy(
+                notificationsEnabled = notificationsEnabled,
+                examRemindersEnabled = examRemindersEnabled,
+                backpackRemindersEnabled = backpackRemindersEnabled,
+                streakRemindersEnabled = streakRemindersEnabled,
+                streakReminderTime = streakReminderTime,
+                backpackReminderTime = backpackReminderTime,
+                examReminderHoursBefore = examReminderHoursBefore
             )
+            repository.updateProfile(updated)
+            LupoAlarmScheduler.scheduleAllReminders(getApplication(), updated)
+        }
+    }
+
+    // Activación interactiva o manual de la Racha
+    fun activateStreakToday() {
+        viewModelScope.launch {
+            val (updatedProfile, wasActivated) = repository.activateDailyStreak(userProfile.value)
+            if (wasActivated && updatedProfile != null) {
+                LupoNotificationHelper.sendStreakActivatedCelebration(
+                    getApplication(),
+                    updatedProfile.studyStreak
+                )
+            }
         }
     }
 
     fun sendTestNotification(): Boolean {
         return LupoNotificationHelper.sendInstantTestNotification(getApplication())
+    }
+
+    fun sendTestStreakNotification(isUrgent: Boolean = false): Boolean {
+        val streak = userProfile.value?.studyStreak ?: 1
+        return LupoNotificationHelper.sendStreakReminderAlert(
+            context = getApplication(),
+            streakDays = streak,
+            isUrgent = isUrgent
+        )
     }
 
     // Cursos Personalizados
@@ -747,6 +787,14 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
         val current = userProfile.value ?: return
         viewModelScope.launch {
             repository.equipOutfit(outfitId, current)
+        }
+    }
+
+    fun buyStreakFreeze(cost: Int = 50, onResult: (Boolean) -> Unit = {}) {
+        val current = userProfile.value ?: return
+        viewModelScope.launch {
+            val success = repository.buyStreakFreeze(cost, current)
+            onResult(success)
         }
     }
 

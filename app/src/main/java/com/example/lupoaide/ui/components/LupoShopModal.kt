@@ -107,10 +107,12 @@ fun LupoShopModal(
     profile: UserProfileEntity?,
     onBuyAndEquip: (outfitId: String, cost: Int) -> Unit,
     onEquip: (outfitId: String) -> Unit,
+    onBuyStreakFreeze: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val coins = profile?.coins ?: 0
     val activeOutfitId = profile?.activeOutfitId ?: "default"
+    val streakFreezes = profile?.streakFreezes ?: 0
     val unlockedSet = remember(profile?.unlockedOutfits) {
         (profile?.unlockedOutfits ?: "default").split(",").map { it.trim() }.toSet()
     }
@@ -159,7 +161,7 @@ fun LupoShopModal(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Desbloquea skins con tus monedas",
+                                text = "Skins y potenciadores de estudio",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -209,7 +211,82 @@ fun LupoShopModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Potenciador: Congelador de Racha (Streak Freeze)
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF0284C7).copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth().testTag("streak_freeze_shop_card")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF0284C7).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AcUnit,
+                                contentDescription = "Congelador de Racha",
+                                tint = Color(0xFF0284C7),
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Congelador de Racha",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF0284C7)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFF0284C7).copy(alpha = 0.2f)
+                                ) {
+                                    Text(
+                                        text = "Tienes: $streakFreezes",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0284C7),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Salva tu racha automáticamente si olvidas estudiar un día.",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Button(
+                            onClick = onBuyStreakFreeze,
+                            enabled = coins >= 50,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text("🪙 50", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Grid de Atuendos
                 LazyVerticalGrid(

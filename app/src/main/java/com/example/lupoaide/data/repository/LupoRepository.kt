@@ -179,6 +179,18 @@ class LupoRepository(private val dao: LupoDao) {
         dao.saveUserProfile(updated)
     }
 
+    suspend fun buyStreakFreeze(cost: Int = 50, currentProfile: UserProfileEntity): Boolean {
+        if (currentProfile.coins >= cost) {
+            val updated = currentProfile.copy(
+                coins = currentProfile.coins - cost,
+                streakFreezes = currentProfile.streakFreezes + 1
+            )
+            dao.saveUserProfile(updated)
+            return true
+        }
+        return false
+    }
+
     // Simulacros / Quizzes de Examen
     suspend fun recordQuizResult(earnedXp: Int, earnedCoins: Int, currentProfile: UserProfileEntity?) {
         if (currentProfile != null && (earnedXp > 0 || earnedCoins > 0)) {
@@ -203,12 +215,98 @@ class LupoRepository(private val dao: LupoDao) {
         }
     }
 
+    // Activación y gestión de Racha de Estudio
+    suspend fun activateDailyStreak(currentProfile: UserProfileEntity?): Pair<UserProfileEntity?, Boolean> {
+        if (currentProfile == null) return Pair(null, false)
+
+        val today = java.time.LocalDate.now().toString()
+        val yesterday = java.time.LocalDate.now().minusDays(1).toString()
+
+        // Si ya está activada hoy, no duplicar
+        if (currentProfile.lastStreakActivatedDate == today) {
+            return Pair(currentProfile, false)
+        }
+
+        var availableFreezes = currentProfile.streakFreezes
+        val newStreak = if (currentProfile.lastStreakActivatedDate == yesterday) {
+            currentProfile.studyStreak + 1
+        } else if (currentProfile.lastStreakActivatedDate.isNotBlank()) {
+            // Si pasaron 2 días pero el usuario tiene congelador de racha, rescatamos la racha
+            val twoDaysAgo = java.time.LocalDate.now().minusDays(2).toString()
+            if (currentProfile.lastStreakActivatedDate == twoDaysAgo && availableFreezes > 0) {
+                availableFreezes -= 1
+                currentProfile.studyStreak + 1
+            } else {
+                1
+            }
+        } else {
+            1
+        }
+
+        val bonusXp = 25
+        val bonusCoins = 10
+
+        var newXp = currentProfile.currentXp + bonusXp
+        var newLevel = currentProfile.level
+        var newTargetXp = currentProfile.targetXp
+
+        while (newXp >= newTargetXp) {
+            newXp -= newTargetXp
+            newLevel += 1
+            newTargetXp = (newTargetXp * 1.35).toInt().coerceAtLeast(50)
+        }
+
+        val updatedHistorySet = currentProfile.streakHistory.split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toMutableSet()
+        updatedHistorySet.add(today)
+
+        val updatedProfile = currentProfile.copy(
+            studyStreak = newStreak,
+            lastStreakActivatedDate = today,
+            level = newLevel,
+            currentXp = newXp,
+            targetXp = newTargetXp,
+            coins = currentProfile.coins + bonusCoins,
+            streakFreezes = availableFreezes,
+            streakHistory = updatedHistorySet.joinToString(",")
+        )
+
+        dao.saveUserProfile(updatedProfile)
+        return Pair(updatedProfile, true)
+    }
+
     // Helper interno para cálculo seguro de nivel y recompensas
     private suspend fun awardExperienceAndCoins(
         currentProfile: UserProfileEntity,
         earnedXp: Int,
         earnedCoins: Int
     ) {
+        val today = java.time.LocalDate.now().toString()
+        val yesterday = java.time.LocalDate.now().minusDays(1).toString()
+
+        // Si el usuario gana EXP hoy y no tenía su racha activada, activarla automáticamente
+        val isFirstActivityToday = currentProfile.lastStreakActivatedDate != today
+        var availableFreezes = currentProfile.streakFreezes
+        val newStreak = if (isFirstActivityToday) {
+            if (currentProfile.lastStreakActivatedDate == yesterday) {
+                currentProfile.studyStreak + 1
+            } else if (currentProfile.lastStreakActivatedDate.isNotBlank()) {
+                val twoDaysAgo = java.time.LocalDate.now().minusDays(2).toString()
+                if (currentProfile.lastStreakActivatedDate == twoDaysAgo && availableFreezes > 0) {
+                    availableFreezes -= 1
+                    currentProfile.studyStreak + 1
+                } else {
+                    1
+                }
+            } else {
+                1
+            }
+        } else {
+            currentProfile.studyStreak
+        }
+
         var newXp = currentProfile.currentXp + earnedXp
         var newLevel = currentProfile.level
         var newTargetXp = currentProfile.targetXp
@@ -219,11 +317,21 @@ class LupoRepository(private val dao: LupoDao) {
             newTargetXp = (newTargetXp * 1.35).toInt().coerceAtLeast(50)
         }
 
+        val updatedHistorySet = currentProfile.streakHistory.split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toMutableSet()
+        updatedHistorySet.add(today)
+
         val updatedProfile = currentProfile.copy(
             level = newLevel,
             currentXp = newXp,
             targetXp = newTargetXp,
-            coins = currentProfile.coins + earnedCoins
+            coins = currentProfile.coins + earnedCoins,
+            studyStreak = newStreak,
+            lastStreakActivatedDate = today,
+            streakFreezes = availableFreezes,
+            streakHistory = updatedHistorySet.joinToString(",")
         )
         dao.saveUserProfile(updatedProfile)
     }
