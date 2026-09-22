@@ -1,5 +1,6 @@
 package com.example.lupoaide.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,7 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,6 +28,7 @@ import com.example.lupoaide.data.local.FlashcardEntity
 import com.example.lupoaide.data.local.TaskEntity
 import com.example.lupoaide.data.local.UserProfileEntity
 import com.example.lupoaide.ui.components.AddTaskDialog
+import com.example.lupoaide.ui.components.LUPO_OUTFITS
 import com.example.lupoaide.ui.components.TaskVerificationDialog
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -57,6 +61,7 @@ fun HomeScreen(
     ) {
         // Lupo Companion Hero Card
         item {
+            val activeOutfit = LUPO_OUTFITS.find { it.id == (profile?.activeOutfitId ?: "default") } ?: LUPO_OUTFITS.first()
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -72,17 +77,28 @@ fun HomeScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(68.dp)
+                            .size(72.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
+                            .background(activeOutfit.color.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Pets,
-                            contentDescription = "Lupo Compañero",
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(38.dp)
-                        )
+                        if (activeOutfit.imageRes != null) {
+                            Image(
+                                painter = painterResource(id = activeOutfit.imageRes),
+                                contentDescription = "Lupo Compañero",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = activeOutfit.icon,
+                                contentDescription = "Lupo Compañero",
+                                tint = activeOutfit.color,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))

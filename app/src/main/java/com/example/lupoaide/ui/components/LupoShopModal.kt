@@ -24,6 +24,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.lupoaide.R
 import com.example.lupoaide.data.local.UserProfileEntity
 
 data class LupoOutfit(
@@ -33,18 +37,40 @@ data class LupoOutfit(
     val cost: Int,
     val icon: ImageVector,
     val color: Color,
-    val badge: String
+    val badge: String,
+    val imageRes: Int? = null
 )
 
 val LUPO_OUTFITS = listOf(
     LupoOutfit(
         id = "default",
         name = "Lupo Clásico",
-        description = "El fiel lobito gris que te acompaña en tus primeros pasos de estudio.",
+        description = "El tierno lobito gris fiel que te acompaña en tus primeros pasos de estudio.",
         cost = 0,
         icon = Icons.Default.Pets,
         color = Color(0xFF6366F1),
-        badge = "🐺 Básico"
+        badge = "🐺 Base",
+        imageRes = R.drawable.lupo_skin_base
+    ),
+    LupoOutfit(
+        id = "lupo_67",
+        name = "Lupo 67 (Six-Seven)",
+        description = "Modo sobrecargado con aura verde relampagueante y boost +67 de concentración.",
+        cost = 100,
+        icon = Icons.Default.ElectricBolt,
+        color = Color(0xFF10B981),
+        badge = "⚡ Six-Seven",
+        imageRes = R.drawable.lupo_skin_67
+    ),
+    LupoOutfit(
+        id = "lupo_sayayin",
+        name = "Lupo Súper Sayayin",
+        description = "¡Poder ki al máximo! Aura dorada llameante de estudio para devorar libros y exámenes.",
+        cost = 150,
+        icon = Icons.Default.FlashOn,
+        color = Color(0xFFEAB308),
+        badge = "🔥 Súper Sayayin",
+        imageRes = R.drawable.lupo_skin_sayayin
     ),
     LupoOutfit(
         id = "scholar",
@@ -315,20 +341,31 @@ fun LupoShopModal(
                                     .padding(12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                // Badge & Icon
+                                // Badge & Icon / Image
                                 Box(
                                     modifier = Modifier
-                                        .size(54.dp)
+                                        .size(60.dp)
                                         .clip(CircleShape)
-                                        .background(outfit.color.copy(alpha = 0.2f)),
+                                        .background(outfit.color.copy(alpha = 0.15f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = outfit.icon,
-                                        contentDescription = outfit.name,
-                                        tint = outfit.color,
-                                        modifier = Modifier.size(32.dp)
-                                    )
+                                    if (outfit.imageRes != null) {
+                                        Image(
+                                            painter = painterResource(id = outfit.imageRes),
+                                            contentDescription = outfit.name,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape)
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = outfit.icon,
+                                            contentDescription = outfit.name,
+                                            tint = outfit.color,
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(8.dp))

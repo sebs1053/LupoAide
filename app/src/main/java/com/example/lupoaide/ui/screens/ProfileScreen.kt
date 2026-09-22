@@ -1,5 +1,6 @@
 package com.example.lupoaide.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,14 +16,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lupoaide.data.local.BlockedAppEntity
 import com.example.lupoaide.data.local.UserProfileEntity
 import com.example.lupoaide.data.service.BlockerPermissionHelper
+import com.example.lupoaide.ui.components.LUPO_OUTFITS
 import com.example.lupoaide.ui.components.LupoTimePickerDialog
 import com.example.lupoaide.ui.components.StreakCalendarHeatmapCard
 import com.example.lupoaide.ui.components.WeeklyStudyStatsCard
@@ -551,40 +555,45 @@ fun ProfileScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    val activeOutfit = LUPO_OUTFITS.find { it.id == (profile?.activeOutfitId ?: "default") } ?: LUPO_OUTFITS.first()
                     Row(
                         modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(52.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
+                                .background(activeOutfit.color.copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = when (profile?.activeOutfitId) {
-                                    "wizard" -> "🧙‍♂️"
-                                    "graduate" -> "🎓"
-                                    "astronaut" -> "👨‍🚀"
-                                    "detective" -> "🕵️"
-                                    "samurai" -> "⚔️"
-                                    "robot" -> "🤖"
-                                    "golden" -> "👑"
-                                    else -> "🐺"
-                                },
-                                fontSize = 24.sp
-                            )
+                            if (activeOutfit.imageRes != null) {
+                                Image(
+                                    painter = painterResource(id = activeOutfit.imageRes),
+                                    contentDescription = "Skin de Lupo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = activeOutfit.icon,
+                                    contentDescription = "Skin de Lupo",
+                                    tint = activeOutfit.color,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
                             Text(
-                                text = "Lupo: ${profile?.activeOutfitId?.replaceFirstChar { it.uppercase() } ?: "Clásico"}",
+                                text = "Lupo: ${activeOutfit.name}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "${profile?.coins ?: 0} Monedas disponibles",
+                                text = "${profile?.coins ?: 0} Monedas • ${activeOutfit.badge}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

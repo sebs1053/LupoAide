@@ -1,5 +1,6 @@
 package com.example.lupoaide.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,11 +20,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.lupoaide.data.local.UserProfileEntity
 import com.example.lupoaide.ui.viewmodel.ChatMessage
 import kotlinx.coroutines.launch
 
@@ -31,9 +35,11 @@ import kotlinx.coroutines.launch
 fun LupoAiChatModal(
     messages: List<ChatMessage>,
     isThinking: Boolean,
+    profile: UserProfileEntity? = null,
     onSendMessage: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val activeOutfit = LUPO_OUTFITS.find { it.id == (profile?.activeOutfitId ?: "default") } ?: LUPO_OUTFITS.first()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -76,47 +82,51 @@ fun LupoAiChatModal(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(46.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
+                                .background(activeOutfit.color.copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Pets,
-                                contentDescription = "Lupo IA",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            if (activeOutfit.imageRes != null) {
+                                Image(
+                                    painter = painterResource(id = activeOutfit.imageRes),
+                                    contentDescription = "Lupo IA",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = activeOutfit.icon,
+                                    contentDescription = "Lupo IA",
+                                    tint = activeOutfit.color,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Lupo Tutor IA",
+                                    text = "Lupo (${activeOutfit.name})",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    color = activeOutfit.color.copy(alpha = 0.15f)
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            Icons.Default.AutoAwesome,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(10.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(2.dp))
                                         Text(
-                                            text = "Activo",
+                                            text = activeOutfit.badge,
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = activeOutfit.color
                                         )
                                     }
                                 }
@@ -180,17 +190,28 @@ fun LupoAiChatModal(
                             if (isLupo) {
                                 Box(
                                     modifier = Modifier
-                                        .size(28.dp)
+                                        .size(30.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                        .background(activeOutfit.color.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        Icons.Default.Pets,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    if (activeOutfit.imageRes != null) {
+                                        Image(
+                                            painter = painterResource(id = activeOutfit.imageRes),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape)
+                                        )
+                                    } else {
+                                        Icon(
+                                            Icons.Default.Pets,
+                                            contentDescription = null,
+                                            tint = activeOutfit.color,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
@@ -228,17 +249,28 @@ fun LupoAiChatModal(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(28.dp)
+                                        .size(30.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                        .background(activeOutfit.color.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        Icons.Default.Pets,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    if (activeOutfit.imageRes != null) {
+                                        Image(
+                                            painter = painterResource(id = activeOutfit.imageRes),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape)
+                                        )
+                                    } else {
+                                        Icon(
+                                            Icons.Default.Pets,
+                                            contentDescription = null,
+                                            tint = activeOutfit.color,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(

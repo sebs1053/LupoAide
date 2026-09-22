@@ -232,6 +232,7 @@ class MainActivity : ComponentActivity() {
                                 LupoAiChatModal(
                                     messages = chatMessages,
                                     isThinking = isThinking,
+                                    profile = profile,
                                     onSendMessage = { viewModel.sendMessageToLupo(it) },
                                     onDismiss = { showChatModal = false }
                                 )
