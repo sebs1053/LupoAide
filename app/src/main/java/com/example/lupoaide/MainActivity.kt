@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -69,8 +70,29 @@ class MainActivity : ComponentActivity() {
                 var isQuizLoading by remember { mutableStateOf(false) }
                 val coroutineScope = rememberCoroutineScope()
 
-                // Si es la primera vez (onboarding no completado), mostrar pantalla de configuración inicial
-                if (profile != null && !profile!!.isOnboardingCompleted) {
+                var isSplashActive by remember { mutableStateOf(true) }
+                var showSplashPreview by remember { mutableStateOf(false) }
+
+                LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(1800)
+                    isSplashActive = false
+                }
+
+                if (showSplashPreview) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { showSplashPreview = false }
+                    ) {
+                        SplashScreen(isDarkTheme = isDarkTheme)
+                    }
+                    LaunchedEffect(showSplashPreview) {
+                        kotlinx.coroutines.delay(2600)
+                        showSplashPreview = false
+                    }
+                } else if (isSplashActive || profile == null) {
+                    SplashScreen(isDarkTheme = isDarkTheme)
+                } else if (!profile!!.isOnboardingCompleted) {
                     OnboardingScreen(
                         onCompleteOnboarding = { username, country, educationLevel, grade, institution, additionalInfo, language ->
                             viewModel.completeOnboarding(username, country, educationLevel, grade, institution, additionalInfo, language)
@@ -88,8 +110,9 @@ class MainActivity : ComponentActivity() {
                             GamificationTopBar(
                                 profile = profile,
                                 currentDateFormatted = viewModel.currentDateFormatted,
-                                onLupoClick = { showChatModal = true },
-                                onOpenShop = { showShopModal = true }
+                                onLupoClick = { showShopModal = true },
+                                onOpenShop = { showShopModal = true },
+                                onOpenChat = { showChatModal = true }
                             )
                         },
                         bottomBar = {
@@ -232,7 +255,8 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onOpenBackpack = { showBackpackModal = true },
                                     onOpenShop = { showShopModal = true },
-                                    onSelectThemeMode = { mode -> viewModel.setThemeMode(mode) }
+                                    onSelectThemeMode = { mode -> viewModel.setThemeMode(mode) },
+                                    onPreviewSplash = { showSplashPreview = true }
                                 )
                             }
 

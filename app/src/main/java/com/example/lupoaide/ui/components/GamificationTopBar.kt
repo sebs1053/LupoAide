@@ -27,7 +27,8 @@ fun GamificationTopBar(
     profile: UserProfileEntity?,
     currentDateFormatted: String,
     onLupoClick: () -> Unit,
-    onOpenShop: () -> Unit = {}
+    onOpenShop: () -> Unit = {},
+    onOpenChat: () -> Unit = {}
 ) {
     val activeOutfit = LUPO_OUTFITS.find { it.id == (profile?.activeOutfitId ?: "default") } ?: LUPO_OUTFITS.first()
 
@@ -49,34 +50,53 @@ fun GamificationTopBar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Lupo avatar & Level
+                // Lupo avatar (Clickeable -> Abre la TIENDA DE LUPO) & Info
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.testTag("lupo_avatar_btn")
                 ) {
-                    IconButton(
-                        onClick = onLupoClick,
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(activeOutfit.color.copy(alpha = 0.2f))
-                    ) {
-                        if (activeOutfit.imageRes != null) {
-                            Image(
-                                painter = painterResource(id = activeOutfit.imageRes),
-                                contentDescription = "Estado de Lupo",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = activeOutfit.icon,
-                                contentDescription = "Estado de Lupo",
-                                tint = activeOutfit.color,
-                                modifier = Modifier.size(24.dp)
-                            )
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        IconButton(
+                            onClick = onLupoClick,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(activeOutfit.color.copy(alpha = 0.2f))
+                        ) {
+                            if (activeOutfit.imageRes != null) {
+                                Image(
+                                    painter = painterResource(id = activeOutfit.imageRes),
+                                    contentDescription = "Abrir Tienda de Lupo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = activeOutfit.icon,
+                                    contentDescription = "Abrir Tienda de Lupo",
+                                    tint = activeOutfit.color,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        // Pequeño indicador de Tienda
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .offset(x = 2.dp, y = 2.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.ShoppingBag,
+                                    contentDescription = "Tienda",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.width(10.dp))
@@ -109,11 +129,39 @@ fun GamificationTopBar(
                     }
                 }
 
-                // Currency & Streak badges
+                // Currency, Streak badges & AI Chat
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Botón Lupo IA
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        modifier = Modifier
+                            .testTag("ai_chat_top_btn")
+                            .clickable { onOpenChat() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "Lupo IA",
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "IA",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+
                     // Monedas (Clickeable -> Abre Tienda)
                     Surface(
                         shape = RoundedCornerShape(16.dp),

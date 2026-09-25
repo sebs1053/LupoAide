@@ -43,7 +43,11 @@ data class TaskVerificationResult(
 class GeminiStudyService {
 
     fun getEffectiveApiKey(customApiKey: String? = null): String {
-        return customApiKey?.trim()?.takeIf { it.isNotBlank() } ?: BuildConfig.GEMINI_API_KEY
+        return customApiKey?.trim()?.takeIf { it.isNotBlank() }
+            ?: try {
+                BuildConfig.GEMINI_API_KEY.takeIf { it.isNotBlank() && it != "dummy_key_for_build" && it != "PLACEHOLDER_API_KEY" }
+            } catch (e: Exception) { null }
+            ?: ""
     }
 
     fun isAiConfigured(customApiKey: String? = null): Boolean {
