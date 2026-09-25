@@ -11,10 +11,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +34,7 @@ fun LupoAiChatModal(
     isThinking: Boolean,
     profile: UserProfileEntity? = null,
     onSendMessage: (String) -> Unit,
+    onClearChat: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val activeOutfit = LUPO_OUTFITS.find { it.id == (profile?.activeOutfitId ?: "default") } ?: LUPO_OUTFITS.first()
@@ -138,15 +136,40 @@ fun LupoAiChatModal(
                             )
                         }
                     }
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.testTag("close_chat_btn")
-                    ) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Cerrar")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onClearChat,
+                            modifier = Modifier.testTag("clear_chat_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Limpiar historial",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.testTag("close_chat_btn")
+                        ) {
+                            Icon(imageVector = Icons.Default.Close, contentDescription = "Cerrar")
+                        }
                     }
                 }
 
-                Divider(modifier = Modifier.padding(vertical = 10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        text = "💾 Historial guardado automáticamente",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Divider(modifier = Modifier.padding(bottom = 10.dp))
 
                 // Sugerencias Rápidas
                 LazyRow(

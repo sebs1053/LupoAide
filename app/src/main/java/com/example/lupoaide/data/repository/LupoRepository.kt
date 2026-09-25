@@ -16,6 +16,7 @@ class LupoRepository(private val dao: LupoDao) {
     val allExams: Flow<List<ExamEntity>> = dao.getAllExams()
     val upcomingExams: Flow<List<ExamEntity>> = dao.getUpcomingExams()
     val allCourses: Flow<List<CourseEntity>> = dao.getAllCourses()
+    val allChatMessages: Flow<List<ChatMessageEntity>> = dao.getAllChatMessages()
 
     fun getSlotsForDay(day: String): Flow<List<TimetableSlotEntity>> = dao.getSlotsByDay(day)
     fun getFlashcardsForLesson(lessonId: Int): Flow<List<FlashcardEntity>> = dao.getFlashcardsByLesson(lessonId)
@@ -28,6 +29,7 @@ class LupoRepository(private val dao: LupoDao) {
     suspend fun verifyAndCompleteTask(
         task: TaskEntity,
         proofText: String,
+        proofImageUri: String,
         aiFeedback: String,
         bonusXp: Int,
         currentProfile: UserProfileEntity?
@@ -38,6 +40,7 @@ class LupoRepository(private val dao: LupoDao) {
             rewardClaimed = true,
             isVerified = true,
             verificationProof = proofText,
+            proofImageUri = proofImageUri,
             aiFeedback = aiFeedback
         )
         dao.updateTask(updatedTask)
@@ -118,6 +121,11 @@ class LupoRepository(private val dao: LupoDao) {
 
     // Perfil
     suspend fun updateProfile(profile: UserProfileEntity) = dao.saveUserProfile(profile)
+
+    suspend fun updateThemeMode(themeMode: String, currentProfile: UserProfileEntity?) {
+        val updated = (currentProfile ?: UserProfileEntity()).copy(themeMode = themeMode)
+        dao.saveUserProfile(updated)
+    }
 
     // Bloqueador de Apps y Plan Gradual
     suspend fun addBlockedApp(app: BlockedAppEntity) = dao.insertBlockedApp(app)
@@ -334,5 +342,14 @@ class LupoRepository(private val dao: LupoDao) {
             streakHistory = updatedHistorySet.joinToString(",")
         )
         dao.saveUserProfile(updatedProfile)
+    }
+
+    // Persistencia de mensajes de Chat
+    suspend fun saveChatMessage(sender: String, message: String) {
+        dao.insertChatMessage(ChatMessageEntity(sender = sender, message = message))
+    }
+
+    suspend fun clearChatHistory() {
+        dao.clearAllChatMessages()
     }
 }

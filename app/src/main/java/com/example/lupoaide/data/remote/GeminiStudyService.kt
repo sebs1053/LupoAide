@@ -213,58 +213,71 @@ class GeminiStudyService {
     }
 
     /**
-     * Comprobación de tarea con IA: evalúa en tiempo real si el estudiante demostró comprensión.
+     * Comprobación de tarea con IA: evalúa en tiempo real si el estudiante demostró evidencia y comprensión.
+     * La IA decide estrictamente si se cumplió o no para tacharla o rechazarla.
      */
     suspend fun verifyTaskWithAi(
         taskTitle: String,
         subject: String,
         studentProof: String,
+        hasPhotoEvidence: Boolean = false,
         userProfile: UserProfileEntity? = null
     ): TaskVerificationResult = withContext(Dispatchers.IO) {
         val studentName = userProfile?.username?.ifBlank { "Estudiante" } ?: "Estudiante"
         val cleanProof = studentProof.trim()
 
-        if (cleanProof.length < 4) {
+        if (cleanProof.length < 5 && !hasPhotoEvidence) {
             return@withContext TaskVerificationResult(
                 isApproved = false,
-                feedbackMessage = "Por favor escribe un breve resumen, procedimiento o resultado de lo que hiciste para comprobar tu tarea.",
+                feedbackMessage = "Evidencia insuficiente. Por favor describe tu procedimiento, resultados o adjunta una foto/captura de lo que hiciste.",
                 bonusXp = 0,
                 gradeTitle = "Evidencia Insuficiente"
             )
         }
 
         val prompt = """
-            Eres Lupo, un lobito tutor de estudio con Inteligencia Artificial.
-            Estás evaluando la comprobación de tarea del estudiante $studentName.
+            Eres Lupo, un lobito tutor de estudio estricto pero justo, pedagógico y motivador con Inteligencia Artificial.
+            Estás evaluando si el estudiante $studentName REALMENTE cumplió y realizó su tarea escolar para permitirle tacharla y completarla.
             
             Datos de la tarea:
-            - Título de la tarea: "$taskTitle"
+            - Título: "$taskTitle"
             - Materia: "$subject"
-            - Evidencia o resumen redactado por el estudiante: "$cleanProof"
+            - Evidencia o texto redactado por el estudiante: "$cleanProof"
+            - Adjuntó foto/documento de evidencia física: ${if (hasPhotoEvidence) "SÍ" else "NO"}
             
-            Evalúa si el estudiante demuestra haber trabajado en su tarea o comprendido el tema.
-            Responde en español en un formato breve (2 a 3 oraciones máximo):
-            1) Felicítalo mencionando detalles de lo que explicó.
-            2) Dale un consejo de refuerzo o ánimo para su próximo examen.
-            
-            Sé cálido, motivador y usa el tono de Lupo (ej. ¡Auuu, gran trabajo!).
+            Instrucciones para Lupo:
+            1. Determina si la evidencia presentada es coherente, relevante y suficiente para considerar la tarea como cumplida (o si solo es texto vacío o evasivo como "ya la hice", "listo", "hola").
+            2. Si la evidencia es real y suficiente, responde iniciando con:
+               ESTADO: APROBADA
+               FEEDBACK: [Felicita al estudiante mencionando lo que explicó o entregó y dale un consejo pedagógico o refuerzo breve en tono Lupo].
+            3. Si la evidencia NO demuestra que hizo la tarea (demasiado vaga, sin sentido o evasiva), responde iniciando con:
+               ESTADO: RECHAZADA
+               FEEDBACK: [Explica amablemente qué le faltó incluir o demostrar para poder validarla y aprobarla].
         """.trimIndent()
 
         try {
-            val (aiFeedback, _) = executeWithModelFallback(prompt, userProfile?.customApiKey)
-            if (!aiFeedback.isNullOrBlank()) {
-                val bonus = if (cleanProof.length > 50) 20 else 15
+            val (aiRaw, _) = executeWithModelFallback(prompt, userProfile?.customApiKey)
+            if (!aiRaw.isNullOrBlank()) {
+                val isApproved = aiRaw.contains("ESTADO: APROBADA", ignoreCase = true) || 
+                                (!aiRaw.contains("ESTADO: RECHAZADA", ignoreCase = true) && cleanProof.length > 20)
+                val feedback = if (aiRaw.contains("FEEDBACK:", ignoreCase = true)) {
+                    aiRaw.substringAfter("FEEDBACK:").trim()
+                } else {
+                    aiRaw.lines().filterNot { it.contains("ESTADO:", ignoreCase = true) }.joinToString(" ").trim()
+                }
+
+                val bonus = if (isApproved) (if (cleanProof.length > 50 || hasPhotoEvidence) 25 else 15) else 0
                 TaskVerificationResult(
-                    isApproved = true,
-                    feedbackMessage = aiFeedback,
+                    isApproved = isApproved,
+                    feedbackMessage = feedback.ifBlank { if (isApproved) "¡Excelente trabajo! Tarea aprobada." else "Evidencia insuficiente para validar la tarea." },
                     bonusXp = bonus,
-                    gradeTitle = "¡Comprobada y Aprobada por Lupo IA! ✨"
+                    gradeTitle = if (isApproved) "¡Tarea Aprobada por Lupo IA! ✨" else "⚠️ Requiere Mejorar Evidencia"
                 )
             } else {
-                getSmartOfflineVerification(taskTitle, subject, cleanProof, studentName)
+                getSmartOfflineVerification(taskTitle, subject, cleanProof, hasPhotoEvidence, studentName)
             }
         } catch (e: Exception) {
-            getSmartOfflineVerification(taskTitle, subject, cleanProof, studentName)
+            getSmartOfflineVerification(taskTitle, subject, cleanProof, hasPhotoEvidence, studentName)
         }
     }
 
@@ -272,15 +285,27 @@ class GeminiStudyService {
         taskTitle: String,
         subject: String,
         proof: String,
+        hasPhoto: Boolean,
         studentName: String
     ): TaskVerificationResult {
-        val feedback = "¡Auuu $studentName! Has demostrado compromiso y comprensión en tu tarea de $subject: \"$taskTitle\". Tu evidencia ha sido validada y registrada con éxito. ¡Sigue con esa gran disciplina!"
-        return TaskVerificationResult(
-            isApproved = true,
-            feedbackMessage = feedback,
-            bonusXp = 15,
-            gradeTitle = "¡Tarea Comprobada por Lupo!"
-        )
+        val lower = proof.lowercase()
+        val isMeaningful = (proof.length >= 15 && !lower.matches(Regex("^(hola|ya|si|no|listo|ok|terminado)+$"))) || hasPhoto
+        if (isMeaningful) {
+            val feedback = "¡Auuu $studentName! Has demostrado compromiso en tu tarea de $subject: \"$taskTitle\". Tu evidencia ha sido verificada y aprobada por Lupo. ¡Sigue con esa gran disciplina!"
+            return TaskVerificationResult(
+                isApproved = true,
+                feedbackMessage = feedback,
+                bonusXp = if (hasPhoto) 25 else 15,
+                gradeTitle = "¡Tarea Aprobada por Lupo!"
+            )
+        } else {
+            return TaskVerificationResult(
+                isApproved = false,
+                feedbackMessage = "Lupo necesita más detalle para validar tu tarea. Por favor incluye una breve explicación de tu procedimiento, fórmulas utilizadas o una foto de tu apunte.",
+                bonusXp = 0,
+                gradeTitle = "⚠️ Evidencia Insuficiente"
+            )
+        }
     }
 
     private fun parseGeneratedLesson(topic: String, subject: String, rawText: String): GeneratedLessonResult {

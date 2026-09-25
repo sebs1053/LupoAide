@@ -21,7 +21,7 @@ import com.example.lupoaide.ui.components.TaskVerificationDialog
 fun TasksScreen(
     tasks: List<TaskEntity>,
     onToggleTask: (TaskEntity) -> Unit,
-    onVerifyTask: (TaskEntity, String) -> Unit,
+    onVerifyTask: (TaskEntity, String, String) -> Unit,
     onDeleteTask: (Int) -> Unit,
     onAddTask: (title: String, desc: String, subject: String, xp: Int, coins: Int, dueDate: String, priority: String) -> Unit
 ) {
@@ -280,8 +280,8 @@ fun TasksScreen(
             TaskVerificationDialog(
                 task = task,
                 onDismiss = { taskToVerify = null },
-                onVerifyAndClaim = { proof ->
-                    onVerifyTask(task, proof)
+                onVerifyAndClaim = { proof, imageUri ->
+                    onVerifyTask(task, proof, imageUri)
                     taskToVerify = null
                 }
             )

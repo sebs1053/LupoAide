@@ -19,9 +19,10 @@ import kotlinx.coroutines.launch
         BlockedAppEntity::class,
         FlashcardEntity::class,
         ExamEntity::class,
-        CourseEntity::class
+        CourseEntity::class,
+        ChatMessageEntity::class
     ],
-    version = 9,
+    version = 11,
     exportSchema = false
 )
 abstract class LupoDatabase : RoomDatabase() {

@@ -69,7 +69,8 @@ fun ProfileScreen(
         motivation: String
     ) -> Unit = { _, _, _, _, _, _, _, _ -> },
     onOpenBackpack: () -> Unit,
-    onOpenShop: () -> Unit = {}
+    onOpenShop: () -> Unit = {},
+    onSelectThemeMode: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     var showEditProfileDialog by remember { mutableStateOf(false) }
@@ -126,7 +127,7 @@ fun ProfileScreen(
                         Icon(
                             imageVector = Icons.Default.Person,
                             contentDescription = "Avatar",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = MaterialTheme.colorScheme.tertiary,
                             modifier = Modifier.size(50.dp)
                         )
                     }
@@ -232,7 +233,7 @@ fun ProfileScreen(
                     Icon(
                         Icons.Default.Shield,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.tertiary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -399,7 +400,7 @@ fun ProfileScreen(
                                     Icon(
                                         Icons.Default.PhoneAndroid,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
+                                        tint = MaterialTheme.colorScheme.tertiary
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -613,6 +614,132 @@ fun ProfileScreen(
         }
 
         // =========================================================================
+        // TEMA Y APARIENCIA (MODO OSCURO / CLARO / DEFECTO DEL SISTEMA)
+        // =========================================================================
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("theme_selection_card")
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Palette,
+                            contentDescription = "Tema de la app",
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Tema y Apariencia",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Elige el modo de visualización de Lupo Aide",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    val currentThemeMode = profile?.themeMode ?: "SYSTEM"
+
+                    val themeOptions = listOf(
+                        Triple("SYSTEM", "Por defecto del sistema", "Sigue la configuración de Android"),
+                        Triple("LIGHT", "Modo Claro", "Blanco #FFFFFF • Secundario #b5bbc3 • Terciario #99c5ff"),
+                        Triple("DARK", "Modo Oscuro", "Azul Marino #000c3d • Secundario #4f5058 • Terciario #99c5ff")
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        themeOptions.forEach { (modeKey, title, subtitle) ->
+                            val isSelected = currentThemeMode == modeKey
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                },
+                                border = if (isSelected) {
+                                    androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary)
+                                } else {
+                                    null
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelectThemeMode(modeKey) }
+                                    .testTag("theme_option_$modeKey")
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        RadioButton(
+                                            selected = isSelected,
+                                            onClick = { onSelectThemeMode(modeKey) },
+                                            colors = RadioButtonDefaults.colors(
+                                                selectedColor = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = when (modeKey) {
+                                                        "LIGHT" -> Icons.Default.LightMode
+                                                        "DARK" -> Icons.Default.DarkMode
+                                                        else -> Icons.Default.BrightnessAuto
+                                                    },
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = if (isSelected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = title,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                            Text(
+                                                text = subtitle,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
         // CONFIGURACIÓN DE INTELIGENCIA ARTIFICIAL (GEMINI 3.5 FLASH)
         // =========================================================================
         item {
@@ -637,7 +764,7 @@ fun ProfileScreen(
                             Icon(
                                 Icons.Default.SmartToy,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -678,14 +805,14 @@ fun ProfileScreen(
                             verticalAlignment = Alignment.Top
                         ) {
                             Icon(
-                                Icons.Default.Lock,
-                                contentDescription = "Seguridad GitHub",
+                                Icons.Default.CheckCircle,
+                                contentDescription = "IA Lista por Defecto",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "🔒 Seguridad GitHub: Puedes poner tu clave en el archivo local '.env' (en la raíz del proyecto) o ingresarla aquí en tu teléfono. El archivo .env y tus datos locales están en .gitignore y NUNCA se subirán a tu repositorio público.",
+                                text = "✨ La IA de Lupo viene configurada por defecto lista para usar sin que tengas que poner nada. Si prefieres usar una clave personal propia de Google AI Studio, puedes ingresarla aquí abajo opcionalmente.",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 lineHeight = 16.sp
@@ -700,8 +827,8 @@ fun ProfileScreen(
                             apiKeyInput = it
                             isApiKeySavedMessageVisible = false
                         },
-                        label = { Text("Clave API de Google AI Studio (Opcional)") },
-                        placeholder = { Text("AIzaSy...") },
+                        label = { Text("Clave API Personal (Opcional - ya viene por defecto)") },
+                        placeholder = { Text("Por defecto activa en la app") },
                         singleLine = true,
                         trailingIcon = {
                             if (apiKeyInput.isNotBlank()) {
@@ -815,7 +942,7 @@ fun ProfileScreen(
                             Icon(
                                 Icons.Default.NotificationsActive,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -883,26 +1010,25 @@ fun ProfileScreen(
                                     )
                                 }
 
-                                if (!isStreakActive) {
-                                    Button(
-                                        onClick = {
-                                            onActivateStreakToday()
-                                            testNotificationSentMsg = "🎉 ¡Racha activada con éxito! +25 EXP otorgados."
-                                        },
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                        modifier = Modifier.height(34.dp)
-                                    ) {
-                                        Text("Activar (+25 XP)", fontSize = 12.sp)
-                                    }
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isStreakActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(
+                                        text = if (isStreakActive) "Completada hoy" else "Automática al estudiar",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isStreakActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
                                 }
                             }
 
                             Text(
                                 text = if (isStreakActive) {
-                                    "¡Gran trabajo! Ya estudiaste hoy. Las alertas de racha permanecerán silenciadas hasta mañana para no interrumpirte."
+                                    "¡Excelente disciplina! Ya estudiaste hoy y tu racha quedó sellada. Las alertas permanecerán silenciadas hasta mañana."
                                 } else {
-                                    "Aún no has activado tu racha hoy. Lupo te enviará alertas a las $streakTime hasta que ingreses a estudiar o hagas check-in."
+                                    "La racha se activa automáticamente al completar una tarea con verificación IA, estudiar una lección o terminar un curso."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -39,6 +39,7 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
     val exams: StateFlow<List<ExamEntity>>
     val upcomingExams: StateFlow<List<ExamEntity>>
     val courses: StateFlow<List<CourseEntity>>
+    val chatMessages: StateFlow<List<ChatMessage>>
 
     // Fecha y día real actual del sistema
     private val todaySpanishDay = getTodayDayOfWeekSpanish()
@@ -58,16 +59,6 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
 
     val tomorrowSpanishDay: String
         get() = getTomorrowDayOfWeekSpanish()
-
-    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(
-        listOf(
-            ChatMessage(
-                sender = "Lupo",
-                message = "¡Auuu! ¡Hola! Soy Lupo, tu compañero y tutor de estudio con IA. ¿En qué materia o tema te gustaría enfocarte hoy?"
-            )
-        )
-    )
-    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
     private val _isLupoThinking = MutableStateFlow(false)
     val isLupoThinking: StateFlow<Boolean> = _isLupoThinking.asStateFlow()
@@ -162,6 +153,28 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
             emptyList()
         )
 
+        chatMessages = repository.allChatMessages.map { entities ->
+            if (entities.isEmpty()) {
+                listOf(
+                    ChatMessage(
+                        sender = "Lupo",
+                        message = "¡Auuu! ¡Hola! Soy Lupo, tu compañero y tutor de estudio con IA. ¿En qué materia o tema te gustaría enfocarte hoy?"
+                    )
+                )
+            } else {
+                entities.map { ChatMessage(sender = it.sender, message = it.message, timestamp = it.timestamp) }
+            }
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            listOf(
+                ChatMessage(
+                    sender = "Lupo",
+                    message = "¡Auuu! ¡Hola! Soy Lupo, tu compañero y tutor de estudio con IA. ¿En qué materia o tema te gustaría enfocarte hoy?"
+                )
+            )
+        )
+
         // Sincronizar automáticamente la programación de alarmas con el perfil
         viewModelScope.launch {
             userProfile.collectLatest { profile ->
@@ -217,18 +230,22 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
     fun verifyAndCompleteTask(
         task: TaskEntity,
         proofText: String,
+        proofImageUri: String = "",
         onResult: (Boolean, String) -> Unit = { _, _ -> }
     ) {
         viewModelScope.launch {
             val verification = geminiService.verifyTaskWithAi(
                 taskTitle = task.title,
                 subject = task.subject,
-                studentProof = proofText
+                studentProof = proofText,
+                hasPhotoEvidence = proofImageUri.isNotBlank(),
+                userProfile = userProfile.value
             )
             if (verification.isApproved) {
                 repository.verifyAndCompleteTask(
                     task = task,
                     proofText = proofText,
+                    proofImageUri = proofImageUri,
                     aiFeedback = verification.feedbackMessage,
                     bonusXp = verification.bonusXp,
                     currentProfile = userProfile.value
@@ -434,25 +451,33 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
     fun sendMessageToLupo(messageText: String, subjectContext: String = "") {
         if (messageText.isBlank()) return
 
-        val userMsg = ChatMessage(sender = "Usuario", message = messageText)
-        _chatMessages.update { it + userMsg }
+        val cleanText = messageText.trim()
         _isLupoThinking.value = true
 
         viewModelScope.launch {
+            // Guardar mensaje de usuario persistentemente en base de datos
+            repository.saveChatMessage(sender = "Usuario", message = cleanText)
+
             try {
                 val response = geminiService.askLupo(
-                    userQuery = messageText,
+                    userQuery = cleanText,
                     subjectContext = subjectContext,
                     userProfile = userProfile.value
                 )
-                val lupoMsg = ChatMessage(sender = "Lupo", message = response)
-                _chatMessages.update { it + lupoMsg }
+                // Guardar respuesta de Lupo persistentemente en base de datos
+                repository.saveChatMessage(sender = "Lupo", message = response)
             } catch (e: Exception) {
                 val err = "⚠️ No pude procesar tu mensaje: ${e.localizedMessage ?: "Error de red"}. Intenta de nuevo."
-                _chatMessages.update { it + ChatMessage(sender = "Lupo", message = err) }
+                repository.saveChatMessage(sender = "Lupo", message = err)
             } finally {
                 _isLupoThinking.value = false
             }
+        }
+    }
+
+    fun clearChatHistory() {
+        viewModelScope.launch {
+            repository.clearChatHistory()
         }
     }
 
@@ -480,6 +505,12 @@ class LupoViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val current = userProfile.value ?: return@launch
             repository.updateProfile(current.copy(customApiKey = apiKey.trim()))
+        }
+    }
+
+    fun setThemeMode(themeMode: String) {
+        viewModelScope.launch {
+            repository.updateThemeMode(themeMode, userProfile.value)
         }
     }
 

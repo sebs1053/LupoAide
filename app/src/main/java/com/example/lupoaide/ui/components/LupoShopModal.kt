@@ -79,7 +79,8 @@ val LUPO_OUTFITS = listOf(
         cost = 80,
         icon = Icons.Default.School,
         color = Color(0xFF0284C7),
-        badge = "🎓 Académico"
+        badge = "🎓 Académico",
+        imageRes = R.drawable.lupo_skin_scholar
     ),
     LupoOutfit(
         id = "scientist",
@@ -88,7 +89,8 @@ val LUPO_OUTFITS = listOf(
         cost = 120,
         icon = Icons.Default.Science,
         color = Color(0xFF10B981),
-        badge = "🔬 Ciencia"
+        badge = "🔬 Ciencia",
+        imageRes = R.drawable.lupo_skin_scientist
     ),
     LupoOutfit(
         id = "coder",
@@ -97,7 +99,8 @@ val LUPO_OUTFITS = listOf(
         cost = 150,
         icon = Icons.Default.Terminal,
         color = Color(0xFF8B5CF6),
-        badge = "💻 Hacker"
+        badge = "💻 Hacker",
+        imageRes = R.drawable.lupo_skin_coder
     ),
     LupoOutfit(
         id = "artist",
@@ -106,7 +109,8 @@ val LUPO_OUTFITS = listOf(
         cost = 100,
         icon = Icons.Default.Palette,
         color = Color(0xFFEC4899),
-        badge = "🎨 Arte"
+        badge = "🎨 Arte",
+        imageRes = R.drawable.lupo_skin_artist
     ),
     LupoOutfit(
         id = "focus_master",
@@ -115,7 +119,8 @@ val LUPO_OUTFITS = listOf(
         cost = 200,
         icon = Icons.Default.Bolt,
         color = Color(0xFFF59E0B),
-        badge = "⚡ Enfoque"
+        badge = "⚡ Enfoque",
+        imageRes = R.drawable.lupo_skin_focus_master
     ),
     LupoOutfit(
         id = "king",
@@ -124,7 +129,8 @@ val LUPO_OUTFITS = listOf(
         cost = 300,
         icon = Icons.Default.WorkspacePremium,
         color = Color(0xFFD97706),
-        badge = "👑 Élite"
+        badge = "👑 Élite",
+        imageRes = R.drawable.lupo_skin_king
     )
 )
 

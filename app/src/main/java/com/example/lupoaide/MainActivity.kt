@@ -29,8 +29,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            LupoAideTheme {
-                val profile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val profile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val systemInDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val isDarkTheme = when (profile?.themeMode ?: "SYSTEM") {
+                "DARK" -> true
+                "LIGHT" -> false
+                else -> systemInDark
+            }
+
+            LupoAideTheme(darkTheme = isDarkTheme) {
                 val tasks by viewModel.tasks.collectAsStateWithLifecycle()
                 val slots by viewModel.timetableSlots.collectAsStateWithLifecycle()
                 val lessons by viewModel.lessons.collectAsStateWithLifecycle()
@@ -105,8 +112,8 @@ class MainActivity : ComponentActivity() {
                                     flashcards = flashcards,
                                     tomorrowDay = viewModel.tomorrowSpanishDay,
                                     onToggleTask = { viewModel.toggleTaskCompletion(it) },
-                                    onVerifyTask = { task, proof ->
-                                        viewModel.verifyAndCompleteTask(task, proof)
+                                    onVerifyTask = { task, proof, imageUri ->
+                                        viewModel.verifyAndCompleteTask(task, proof, imageUri)
                                     },
                                     onAddTask = { title, desc, sub, xp, coins, due, priority ->
                                         viewModel.addTask(title, desc, sub, xp, coins, due, priority)
@@ -133,8 +140,8 @@ class MainActivity : ComponentActivity() {
                                 LupoScreen.TASKS -> TasksScreen(
                                     tasks = tasks,
                                     onToggleTask = { viewModel.toggleTaskCompletion(it) },
-                                    onVerifyTask = { task, proof ->
-                                        viewModel.verifyAndCompleteTask(task, proof)
+                                    onVerifyTask = { task, proof, imageUri ->
+                                        viewModel.verifyAndCompleteTask(task, proof, imageUri)
                                     },
                                     onDeleteTask = { viewModel.deleteTask(it) },
                                     onAddTask = { title, desc, sub, xp, coins, due, priority ->
@@ -224,7 +231,8 @@ class MainActivity : ComponentActivity() {
                                         viewModel.addBlockedApp(pkg, name, cat, goal, initMin, targetMin, days, mot)
                                     },
                                     onOpenBackpack = { showBackpackModal = true },
-                                    onOpenShop = { showShopModal = true }
+                                    onOpenShop = { showShopModal = true },
+                                    onSelectThemeMode = { mode -> viewModel.setThemeMode(mode) }
                                 )
                             }
 
@@ -234,6 +242,7 @@ class MainActivity : ComponentActivity() {
                                     isThinking = isThinking,
                                     profile = profile,
                                     onSendMessage = { viewModel.sendMessageToLupo(it) },
+                                    onClearChat = { viewModel.clearChatHistory() },
                                     onDismiss = { showChatModal = false }
                                 )
                             }

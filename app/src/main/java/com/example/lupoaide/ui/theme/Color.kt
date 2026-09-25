@@ -2,26 +2,25 @@ package com.example.lupoaide.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val IndigoPrimary = Color(0xFF6366F1)
-val IndigoOnPrimary = Color(0xFFFFFFFF)
-val IndigoContainer = Color(0xFFE0E7FF)
-val IndigoOnContainer = Color(0xFF1E1B4B)
+// Paleta Solicitada por el Usuario
+val DarkPrimary = Color(0xFF000C3D)       // Color principal del modo oscuro (#000c3d)
+val LightPrimary = Color(0xFFFFFFFF)      // Color principal del modo claro (#FFFFFF)
+val DarkSecondary = Color(0xFF4F5058)     // Secundario modo oscuro (#4f5058)
+val LightSecondary = Color(0xFFB5BBC3)    // Secundario modo claro (#b5bbc3)
+val TertiaryBoth = Color(0xFF99C5FF)      // Terciario para ambos temas (#99c5ff)
 
-val AmberSecondary = Color(0xFFF59E0B)
-val AmberOnSecondary = Color(0xFFFFFFFF)
-val AmberContainer = Color(0xFFFEF3C7)
-val AmberOnContainer = Color(0xFF78350F)
+// Fondos y Superficies Armónicas
+val DarkNavyBackground = Color(0xFF000C3D)
+val DarkNavySurface = Color(0xFF021245)
+val DarkNavySurfaceVariant = Color(0xFF091F5E)
+val DarkNavyContainer = Color(0xFF0E2A78)
 
-val EmeraldTertiary = Color(0xFF10B981)
-val EmeraldOnTertiary = Color(0xFFFFFFFF)
-val EmeraldContainer = Color(0xFFD1FAE5)
-val EmeraldOnTertiaryContainer = Color(0xFF064E3B)
+val LightPureBackground = Color(0xFFFFFFFF)
+val LightPureSurface = Color(0xFFFFFFFF)
+val LightPureSurfaceVariant = Color(0xFFF1F4F9)
+val LightContainer = Color(0xFFE8EEF8)
 
-val SlateBackground = Color(0xFF0F172A)
-val SlateSurface = Color(0xFF1E293B)
-val SlateSurfaceVariant = Color(0xFF334155)
-val TextPrimary = Color(0xFFF8FAFC)
-val TextSecondary = Color(0xFF94A3B8)
-val AccentPurple = Color(0xFF8B5CF6)
 val DangerRed = Color(0xFFEF4444)
 val SuccessGreen = Color(0xFF22C55E)
+val AmberWarning = Color(0xFFF59E0B)
+

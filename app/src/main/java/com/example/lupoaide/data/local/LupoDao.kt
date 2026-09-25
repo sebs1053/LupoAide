@@ -143,4 +143,14 @@ interface LupoDao {
 
     @Query("DELETE FROM courses WHERE id = :id")
     suspend fun deleteCourse(id: Int)
+
+    // Chat con Lupo IA Persistente
+    @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+    fun getAllChatMessages(): Flow<List<ChatMessageEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertChatMessage(message: ChatMessageEntity)
+
+    @Query("DELETE FROM chat_messages")
+    suspend fun clearAllChatMessages()
 }

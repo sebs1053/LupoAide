@@ -8,43 +8,47 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = IndigoPrimary,
-    onPrimary = IndigoOnPrimary,
-    primaryContainer = IndigoContainer,
-    onPrimaryContainer = IndigoOnContainer,
-    secondary = AmberSecondary,
-    onSecondary = AmberOnSecondary,
-    secondaryContainer = AmberContainer,
-    onSecondaryContainer = AmberOnContainer,
-    tertiary = EmeraldTertiary,
-    onTertiary = EmeraldOnTertiary,
-    tertiaryContainer = EmeraldContainer,
-    onTertiaryContainer = EmeraldOnTertiaryContainer,
-    background = SlateBackground,
-    onBackground = TextPrimary,
-    surface = SlateSurface,
-    onSurface = TextPrimary,
-    surfaceVariant = SlateSurfaceVariant,
-    onSurfaceVariant = TextSecondary
+    primary = DarkPrimary, // #000c3d
+    onPrimary = LightPrimary, // #FFFFFF
+    primaryContainer = DarkNavyContainer,
+    onPrimaryContainer = TertiaryBoth, // #99c5ff
+    secondary = DarkSecondary, // #4f5058
+    onSecondary = LightPrimary,
+    secondaryContainer = Color(0xFF282C35),
+    onSecondaryContainer = LightSecondary, // #b5bbc3
+    tertiary = TertiaryBoth, // #99c5ff
+    onTertiary = DarkPrimary,
+    tertiaryContainer = Color(0xFF0F2B6B),
+    onTertiaryContainer = TertiaryBoth,
+    background = DarkNavyBackground, // #000c3d
+    onBackground = LightPrimary,
+    surface = DarkNavySurface,
+    onSurface = LightPrimary,
+    surfaceVariant = DarkNavySurfaceVariant,
+    onSurfaceVariant = LightSecondary,
+    outline = DarkSecondary
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = IndigoPrimary,
-    onPrimary = IndigoOnPrimary,
-    primaryContainer = IndigoContainer,
-    onPrimaryContainer = IndigoOnContainer,
-    secondary = AmberSecondary,
-    onSecondary = AmberOnSecondary,
-    secondaryContainer = AmberContainer,
-    onSecondaryContainer = AmberOnContainer,
-    tertiary = EmeraldTertiary,
-    onTertiary = EmeraldOnTertiary,
-    background = Color(0xFFF8FAFC),
-    onBackground = Color(0xFF0F172A),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF0F172A),
-    surfaceVariant = Color(0xFFE2E8F0),
-    onSurfaceVariant = Color(0xFF475569)
+    primary = LightPrimary, // #FFFFFF
+    onPrimary = DarkPrimary, // #000c3d
+    primaryContainer = LightContainer,
+    onPrimaryContainer = DarkPrimary,
+    secondary = LightSecondary, // #b5bbc3
+    onSecondary = DarkPrimary,
+    secondaryContainer = Color(0xFFE2E6EC),
+    onSecondaryContainer = DarkPrimary,
+    tertiary = TertiaryBoth, // #99c5ff
+    onTertiary = DarkPrimary,
+    tertiaryContainer = Color(0xFFD6E7FF),
+    onTertiaryContainer = DarkPrimary,
+    background = LightPureBackground, // #FFFFFF
+    onBackground = DarkPrimary,
+    surface = LightPureSurface, // #FFFFFF
+    onSurface = DarkPrimary,
+    surfaceVariant = LightPureSurfaceVariant,
+    onSurfaceVariant = DarkSecondary,
+    outline = LightSecondary
 )
 
 @Composable

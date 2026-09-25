@@ -17,6 +17,7 @@ data class TaskEntity(
     val rewardClaimed: Boolean = false, // Evita bug de ganar EXP infinita al desmarcar/marcar
     val isVerified: Boolean = false,     // Comprobación real de que se hizo la tarea
     val verificationProof: String = "",  // Evidencia o respuesta de comprobación del estudiante
+    val proofImageUri: String = "",      // URI local de la foto/imagen de evidencia de la tarea
     val aiFeedback: String = "",         // Evaluación y comentarios pedagógicos generados por Lupo IA
     val dueDate: String = "",
     val priority: String = "Media", // Baja, Media, Alta
@@ -93,7 +94,8 @@ data class UserProfileEntity(
     val examReminderHoursBefore: Int = 24, // Horas de anticipación configurables
     val lastStreakActivatedDate: String = "", // YYYY-MM-DD
     val streakFreezes: Int = 1, // Cantidad de escudos/congeladores de racha disponibles
-    val streakHistory: String = "" // Fechas separadas por comas (YYYY-MM-DD) de días completados
+    val streakHistory: String = "", // Fechas separadas por comas (YYYY-MM-DD) de días completados
+    val themeMode: String = "SYSTEM" // SYSTEM, LIGHT, DARK
 ) {
     val isStreakActiveToday: Boolean
         get() {
@@ -187,5 +189,14 @@ data class BlockedAppEntity(
     val motivationReason: String = "Quiero concentrarme en mis estudios y no procrastinar",
     val dailyUsageMinutesToday: Int = 0,
     val lastResetDate: String = ""
+)
+
+@Serializable
+@Entity(tableName = "chat_messages")
+data class ChatMessageEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val sender: String, // "Usuario" o "Lupo"
+    val message: String,
+    val timestamp: Long = System.currentTimeMillis()
 )
 

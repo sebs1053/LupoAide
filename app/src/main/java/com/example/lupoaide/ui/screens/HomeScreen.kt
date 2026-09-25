@@ -41,7 +41,7 @@ fun HomeScreen(
     flashcards: List<FlashcardEntity> = emptyList(),
     tomorrowDay: String,
     onToggleTask: (TaskEntity) -> Unit,
-    onVerifyTask: (TaskEntity, String) -> Unit,
+    onVerifyTask: (TaskEntity, String, String) -> Unit,
     onAddTask: (title: String, desc: String, subject: String, xp: Int, coins: Int, dueDate: String, priority: String) -> Unit,
     onOpenLupoChat: () -> Unit,
     onOpenBackpack: () -> Unit,
@@ -224,30 +224,36 @@ fun HomeScreen(
                             text = if (isStreakActive) {
                                 "¡Objetivo del día cumplido! Recordatorios pausados hasta mañana."
                             } else {
-                                "Haz check-in o completa tareas para no perder tus ${profile?.studyStreak ?: 1} días."
+                                "Estudia lecciones, completa tareas con IA o haz un curso para activarla."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isStreakActive) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f)
                         )
                     }
 
-                    if (!isStreakActive) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = onActivateStreak,
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isStreakActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Text("Activar (+25 XP)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Icon(
+                                imageVector = if (isStreakActive) Icons.Default.CheckCircle else Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = if (isStreakActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isStreakActive) "Sellada hoy" else "Auto al estudiar",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isStreakActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+                            )
                         }
-                    } else {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Racha cumplida",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
                     }
                 }
             }
@@ -580,8 +586,8 @@ fun HomeScreen(
         TaskVerificationDialog(
             task = task,
             onDismiss = { taskToVerify = null },
-            onVerifyAndClaim = { proof ->
-                onVerifyTask(task, proof)
+            onVerifyAndClaim = { proof, imageUri ->
+                onVerifyTask(task, proof, imageUri)
                 taskToVerify = null
             }
         )
